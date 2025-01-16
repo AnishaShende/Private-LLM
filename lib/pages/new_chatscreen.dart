@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:universal_html/html.dart' as html;
 
 import '../component/side_navbar.dart';
+import '../llm/prompts.dart';
 import '../models/message.dart';
 import '../llm/gemma_service.dart';
 import '../services/platform_service.dart';
@@ -522,12 +523,38 @@ class _NewChatscreenState extends State<NewChatscreen>
   }
 
   // method to handle first message and hide initial questions
-  void _handleFirstMessage(String question) {
+  void _handleFirstMessage(String question, String type) {
     setState(() {
       _showInitialQuestions = false;
       _messageController.clear();
       _isGenerating = true;
     });
+
+    if (!(type == 'General')) {
+      String systemPrompt = '';
+      switch (type) {
+        case 'Education':
+          systemPrompt = Prompts.educationPrompt;
+          break;
+        case 'Projects':
+          systemPrompt = Prompts.projectsPrompt;
+          break;
+        case 'Experience':
+          systemPrompt = Prompts.experiencePrompt;
+          break;
+        case 'Skills':
+          systemPrompt = Prompts.skillsPrompt;
+          break;
+        case 'Fun':
+          systemPrompt = Prompts.funPrompt;
+          break;
+        default:
+          systemPrompt = Prompts.systemPrompt;
+      }
+
+      gemmaService.chat.addMessageWithoutSending(systemPrompt);
+    }
+
     _onQuestionTap(question);
   }
 
@@ -642,7 +669,7 @@ class _NewChatscreenState extends State<NewChatscreen>
       _messages.clear();
       _tabMessages.clear();
 
-      for (int i = 1; i < 5; i++) {
+      for (int i = 1; i <= 5; i++) {
         _tabMessages[i] = [];
         _initialMessageSentForTab[i] = false;
         _tabScrollControllers[i]!.jumpTo(0);
@@ -1050,8 +1077,8 @@ class _NewChatscreenState extends State<NewChatscreen>
                                       const EdgeInsets.symmetric(horizontal: 4),
                                   child: ActionChip(
                                     label: Text(question),
-                                    onPressed: () =>
-                                        _handleFirstMessage(question),
+                                    onPressed: () => _handleFirstMessage(
+                                        question, "General"),
                                   ),
                                 ),
                             ],
@@ -1216,7 +1243,8 @@ class _NewChatscreenState extends State<NewChatscreen>
                             padding: const EdgeInsets.symmetric(horizontal: 4),
                             child: ActionChip(
                               label: Text(question),
-                              onPressed: () => _handleFirstMessage(question),
+                              onPressed: () =>
+                                  _handleFirstMessage(question, type),
                             ),
                           ),
                       ],
