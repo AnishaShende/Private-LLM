@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:private_llm/component/button.dart';
-import 'package:private_llm/component/icon.dart';
+import 'package:private_llm/component/my_icon.dart';
 import 'package:sidebarx/sidebarx.dart';
 
 const primaryColor = Color(0xFF685BFF);
@@ -12,16 +12,19 @@ final actionColor = const Color(0xFF5F5FA7).withOpacity(0.6);
 final divider = Divider(color: white.withOpacity(0.3), height: 1);
 
 class SideNavbar extends StatelessWidget {
-  // const SideNavbar({super.key});
-
-  const SideNavbar(
-      {super.key, required SidebarXController controller, this.onNewChat})
+  SideNavbar(
+      {super.key,
+      required SidebarXController controller,
+      this.onNewChat,
+      this.isSmallScreen = false})
       : _controller = controller;
   final SidebarXController _controller;
   final VoidCallback? onNewChat;
+  final bool isSmallScreen;
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
     return SidebarX(
       controller: _controller,
       theme: SidebarXTheme(
@@ -70,7 +73,7 @@ class SideNavbar extends StatelessWidget {
           size: 20,
         ),
       ),
-      extendedTheme: const SidebarXTheme(width: 300),
+      extendedTheme: SidebarXTheme(width: size.width * 0.35),
       footerDivider: Divider(color: Colors.white.withOpacity(0.8), height: 1),
       headerBuilder: (context, extended) {
         if (extended) {
@@ -111,8 +114,6 @@ class SideNavbar extends StatelessWidget {
           label: 'Experience',
           // onTap: () {
           //   debugPrint('Experience');
-          //   // _handleNavigation('Experience');
-          //   // widget.onChatInit(defaultMessages['Experience']!);
           // },
         ),
         SidebarXItem(
@@ -120,8 +121,6 @@ class SideNavbar extends StatelessWidget {
           label: 'Skills',
           // onTap: () {
           //   debugPrint('Skills');
-          //   // _handleNavigation('Skills');
-          //   // widget.onChatInit(defaultMessages['Skills']!);
           // },
         ),
         SidebarXItem(
@@ -129,8 +128,6 @@ class SideNavbar extends StatelessWidget {
           label: 'Fun',
         ),
       ],
-
-      // Your app screen body
     );
   }
 }

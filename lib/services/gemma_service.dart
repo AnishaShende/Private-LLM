@@ -43,10 +43,6 @@ class GemmaService {
     );
 
     _chat.addMessageWithoutSending(_systemPrompt);
-    // _conversationHistory.add({
-    //   'role': 'system',
-    //   'content': _systemPrompt,
-    // });
   }
 
   void switchModel(String newModelId) {
@@ -66,37 +62,24 @@ class GemmaService {
               role: msg['role'] == 'system'
                   ? GroqMessageRole.system
                   : GroqMessageRole.user,
-              // : msg['role'] == 'user'
-              //     ? GroqMessageRole.user
-              //     : GroqMessageRole.system,
               content: msg['content']!,
             ))
         .toList();
 
-    // print("printing conversation history: $_conversationHistory");
+    // debugPrint("printing conversation history: $_conversationHistory");
 
-    // final request = _groq.startNewChat(
-    //   // messages: messages,
-    //   modelId,
-    //   settings: GroqChatSettings(
-    //     temperature: 0.7,
-    //     maxTokens: 4096,
-    //   ),
-    // );
-
-    print('Heres the enhanced prompt: $enhancedPrompt');
+    // debugPrint('Heres the enhanced prompt: $enhancedPrompt');
     messages.add(GroqMessage(
       role: GroqMessageRole.assistant,
       content: enhancedPrompt,
     ));
 
-    // print("Here are the messages: $messages");
+    // debugPrint("Here are the messages: $messages");
 
     _chat.addMessageWithoutSending(enhancedPrompt);
 
     final (response, _) =
         await _chat.sendMessage(prompt, role: GroqMessageRole.user);
-    // final response = await _groq.chatCompletion(request);
     final responseText = response.choices.first.message;
 
     _conversationHistory.add({
@@ -106,12 +89,4 @@ class GemmaService {
 
     return responseText;
   }
-
-  // void clearHistory() {
-  //   _conversationHistory.clear();
-  //   _conversationHistory.add({
-  //     'role': 'system',
-  //     'content': _systemPrompt,
-  //   });
-  // }
 }

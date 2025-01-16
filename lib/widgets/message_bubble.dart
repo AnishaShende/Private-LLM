@@ -10,7 +10,7 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final maxWidth = screenWidth * 0.7; // 70% of screen width
+    final maxWidth = screenWidth * 0.7;
 
     return Column(
       crossAxisAlignment:
@@ -30,15 +30,6 @@ class MessageBubble extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Text(
-                //   // MessageFormatter().formatContent(message.content),
-
-                //   style: TextStyle(
-                //     color: message.isUser
-                //         ? Theme.of(context).colorScheme.onPrimary
-                //         : Theme.of(context).colorScheme.onSecondary,
-                //   ),
-                // ),
                 MarkdownBody(
                   data: message.content,
                   selectable: true,

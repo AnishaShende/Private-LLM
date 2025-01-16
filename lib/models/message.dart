@@ -3,7 +3,7 @@ class Message {
   final bool isUser;
   final DateTime timestamp;
   final List<Map<String, dynamic>>? relevantDocs;
-  final Duration? generationTime; // Add generation time field
+  final Duration? generationTime;
 
   Message({
     required this.content,
@@ -13,7 +13,6 @@ class Message {
     this.generationTime,
   });
 
-  // Add toJson method
   Map<String, dynamic> toJson() => {
         'content': content,
         'isUser': isUser,
@@ -22,7 +21,6 @@ class Message {
         'generationTime': generationTime?.inMicroseconds,
       };
 
-  // Add fromJson constructor
   factory Message.fromJson(Map<String, dynamic> json) => Message(
         content: json['content'],
         isUser: json['isUser'],

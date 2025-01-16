@@ -46,6 +46,7 @@ dependencies:
   sidebarx: ^0.17.1
   typewritertext: ^3.0.9
   flutter_skeleton_ui: ^0.0.6
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -69,8 +70,9 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - assets/images/
+  assets:
+    - .env
+    # - assets/images/
   #   - assets/icons/
 
   # An image asset can refer to one or more resolution-specific "variants", see

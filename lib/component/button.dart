@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:private_llm/utils/border_gradient.dart';
 import 'package:sidebarx/sidebarx.dart';
@@ -7,14 +6,13 @@ class NewButton extends StatefulWidget {
   final SidebarXController controller;
   final VoidCallback? onNewChat;
 
-  const NewButton({Key? key, required this.controller, this.onNewChat})
-      : super(key: key);
+  const NewButton({super.key, required this.controller, this.onNewChat});
 
   @override
-  _NewButtonState createState() => _NewButtonState();
+  NewButtonState createState() => NewButtonState();
 }
 
-class _NewButtonState extends State<NewButton> {
+class NewButtonState extends State<NewButton> {
   @override
   Widget build(BuildContext context) {
     return Container(
