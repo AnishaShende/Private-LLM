@@ -1,10 +1,15 @@
 import 'dart:math';
+// import 'dart:nativewrappers/_internal/vm/lib/ffi_allocation_patch.dart';
 import 'package:flutter/material.dart';
+import 'package:sidebarx/sidebarx.dart';
 
 class GradientIcon extends StatefulWidget {
   final double size;
+  final SidebarXController controller;
+  final VoidCallback? onNewChat;
 
-  const GradientIcon({super.key, this.size = 24.0});
+  const GradientIcon(
+      {super.key, this.size = 24.0, this.onNewChat, required this.controller});
 
   @override
   State<GradientIcon> createState() => _GradientIconState();
@@ -48,10 +53,16 @@ class _GradientIconState extends State<GradientIcon>
               transform: GradientRotation(_controller.value * 2 * pi),
             ).createShader(bounds);
           },
-          child: Icon(
-            Icons.add_circle,
-            size: widget.size,
-            color: Colors.white,
+          child: GestureDetector(
+            onTap: () {
+              widget.controller.selectIndex(0);
+              widget.onNewChat?.call();
+            },
+            child: Icon(
+              Icons.add_circle,
+              size: widget.size,
+              color: Colors.white,
+            ),
           ),
         );
       },

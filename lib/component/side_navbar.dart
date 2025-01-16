@@ -26,6 +26,7 @@ class SideNavbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     return SidebarX(
+      showToggleButton: isSmallScreen ? false : true,
       controller: _controller,
       theme: SidebarXTheme(
         margin: const EdgeInsets.all(10),
@@ -73,9 +74,11 @@ class SideNavbar extends StatelessWidget {
           size: 20,
         ),
       ),
-      extendedTheme: SidebarXTheme(width: size.width * 0.35),
+      extendedTheme: SidebarXTheme(
+          width: isSmallScreen ? size.width * 0.5 : size.width * 0.35),
       footerDivider: Divider(color: Colors.white.withOpacity(0.8), height: 1),
       headerBuilder: (context, extended) {
+        isSmallScreen ? extended = false : true;
         if (extended) {
           return Padding(
             padding: const EdgeInsets.all(10.0),
@@ -86,8 +89,12 @@ class SideNavbar extends StatelessWidget {
           );
         }
         return Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: const GradientIcon(size: 24.0),
+          padding: const EdgeInsets.all(20.0),
+          child: GradientIcon(
+            size: isSmallScreen ? 30.0 : 24.0,
+            controller: _controller,
+            onNewChat: onNewChat,
+          ),
         );
       },
       items: [

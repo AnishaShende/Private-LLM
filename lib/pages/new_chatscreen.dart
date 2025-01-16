@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:groq_sdk/groq_sdk.dart';
+import 'package:private_llm/llm/llama_service.dart';
+import 'package:private_llm/llm/mistral_service.dart';
 import 'package:private_llm/utils/border_gradient.dart';
 import 'package:shared_preferences/shared_preferences.dart' as prefs;
 import 'package:sidebarx/sidebarx.dart';
@@ -12,7 +14,7 @@ import 'package:universal_html/html.dart' as html;
 
 import '../component/side_navbar.dart';
 import '../models/message.dart';
-import '../services/gemma_service.dart';
+import '../llm/gemma_service.dart';
 import '../services/platform_service.dart';
 import '../utils/gradient.dart';
 import '../widgets/message_bubble.dart';
@@ -34,6 +36,10 @@ class _NewChatscreenState extends State<NewChatscreen>
     with WindowListener, SingleTickerProviderStateMixin {
   final gemmaService =
       GemmaService(dotenv.env['GEMMA_API_KEY'] ?? '', 'gemma2-9b-it');
+  final llamaService =
+      LlamaService(dotenv.env['LLAMA_API_KEY'] ?? '', 'llama3-8b-8192');
+  final mistralService =
+      MistralService(dotenv.env['MISTRAL_API_KEY'] ?? '', 'mixtral-8x7b-32768');
 
   final _controller = SidebarXController(selectedIndex: 0, extended: true);
 
@@ -43,7 +49,7 @@ class _NewChatscreenState extends State<NewChatscreen>
   final Map<int, ScrollController> _tabScrollControllers = {};
   final _key = GlobalKey<ScaffoldState>();
 
-  static const int MAX_API_CALLS = 3;
+  static const int MAX_API_CALLS = 15;
   int _apiCallCount = 0;
   DateTime? _lastApiCallTime;
   final Map<int, bool> _initialMessageSentForTab = {};
@@ -156,7 +162,7 @@ class _NewChatscreenState extends State<NewChatscreen>
       duration: const Duration(milliseconds: 90));
 
   final Map<String, String> _availableModels = {
-    'Llama 3 (8B)': 'lama3-8b-8192',
+    'Llama 3 (8B)': 'llama3-8b-8192',
     'Gemma 2 (9B)': 'gemma2-9b-it',
     'Mixtral 8 (7B)': 'mixtral-8x7b-32768',
   };
@@ -255,7 +261,7 @@ class _NewChatscreenState extends State<NewChatscreen>
     if (_apiCallCount >= MAX_API_CALLS) {
       final now = DateTime.now();
       if (_lastApiCallTime != null &&
-          now.difference(_lastApiCallTime!).inHours < 1) {
+          now.difference(_lastApiCallTime!).inMinutes < 1) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -372,6 +378,18 @@ class _NewChatscreenState extends State<NewChatscreen>
 
   Future<void> sendMessage(String content) async {
     if (!await _canMakeApiCall()) {
+      setState(() {
+        _isGenerating = false;
+        _isLoading = false;
+        _messages.add(Message(
+          content:
+              "Sorry, you've reached maximum API calls limit for a minute! Please have some patience and try again after some time.",
+          isUser: false,
+          timestamp: DateTime.now(),
+          relevantDocs: null,
+        ));
+      });
+      _scrollToBottom();
       return;
     }
 
@@ -700,6 +718,7 @@ class _NewChatscreenState extends State<NewChatscreen>
 
           return SafeArea(
             child: Scaffold(
+              key: _key,
               drawer: SideNavbar(
                 controller: _controller,
                 onNewChat: _startNewChat,
@@ -758,6 +777,14 @@ class _NewChatscreenState extends State<NewChatscreen>
     return AppBar(
       automaticallyImplyLeading: false,
       centerTitle: true,
+      leading: MediaQuery.of(context).size.width < 600
+          ? IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () {
+                _key.currentState?.openDrawer();
+              },
+            )
+          : null,
       title: _showDropdown
           ? PreferredSize(
               preferredSize: const Size.fromHeight(45),
@@ -845,7 +872,9 @@ class _NewChatscreenState extends State<NewChatscreen>
                         Color.fromARGB(228, 249, 100, 100),
                       ],
                       style: TextStyle(
-                        fontSize: MediaQuery.of(context).size.width * 0.027,
+                        fontSize: isSmallScreen
+                            ? MediaQuery.of(context).size.width * 0.087
+                            : MediaQuery.of(context).size.width * 0.027,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -859,7 +888,9 @@ class _NewChatscreenState extends State<NewChatscreen>
                             Color.fromARGB(228, 249, 100, 100),
                           ],
                           style: TextStyle(
-                            fontSize: MediaQuery.of(context).size.width * 0.027,
+                            fontSize: isSmallScreen
+                                ? MediaQuery.of(context).size.width * 0.077
+                                : MediaQuery.of(context).size.width * 0.027,
                             fontWeight: FontWeight.w400,
                           ),
                         );
@@ -870,7 +901,8 @@ class _NewChatscreenState extends State<NewChatscreen>
                       child: Container(
                         height: MediaQuery.of(context).size.height *
                             (isSmallScreen ? 0.35 : 0.35),
-                        width: MediaQuery.of(context).size.width * 0.5,
+                        width: MediaQuery.of(context).size.width *
+                            (isSmallScreen ? 0.7 : 0.5),
                         padding: EdgeInsets.all(
                             MediaQuery.of(context).size.width * 0.02),
                         decoration: BoxDecoration(
@@ -898,8 +930,10 @@ class _NewChatscreenState extends State<NewChatscreen>
                                 style: TextStyle(
                                     color: Colors.black54,
                                     fontWeight: FontWeight.w500,
-                                    fontSize:
-                                        MediaQuery.of(context).size.width *
+                                    fontSize: isSmallScreen
+                                        ? MediaQuery.of(context).size.width *
+                                            0.045
+                                        : MediaQuery.of(context).size.width *
                                             0.015),
                                 textAlign: TextAlign.justify,
                                 "And you've found Anisha's digital portfolio, and I'm here to help you explore it. Got a question about her research, certifications, or upcoming goals? Just ask me. I've got all the answers! Ask me anything, and I'll guide you through! 😊"),
@@ -918,11 +952,13 @@ class _NewChatscreenState extends State<NewChatscreen>
                               size: 16, color: Colors.grey[600]),
                           const SizedBox(width: 8),
                           Text(
-                            'Disclaimer: Responses may not always be accurate or complete.',
+                            isSmallScreen
+                                ? "Disclaimer: Responses may not always be \n accurate or complete."
+                                : 'Disclaimer: Responses may not always be accurate or complete.',
                             style: TextStyle(
                               color: Colors.grey[600],
-                              fontSize:
-                                  MediaQuery.of(context).size.width * 0.01,
+                              fontSize: MediaQuery.of(context).size.width *
+                                  (isSmallScreen ? 0.041 : 0.01),
                               fontStyle: FontStyle.italic,
                             ),
                           ),
