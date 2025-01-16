@@ -1,0 +1,1648 @@
+import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:groq_sdk/groq_sdk.dart';
+import 'package:private_llm/component/navigation_bar.dart';
+import 'package:private_llm/utils/border_gradient.dart';
+import 'package:shared_preferences/shared_preferences.dart' as prefs;
+import 'package:sidebarx/sidebarx.dart';
+import 'package:window_manager/window_manager.dart';
+import 'package:http/http.dart' as http;
+import 'package:universal_html/html.dart' as html;
+
+import '../component/side_navbar.dart';
+import '../models/message.dart';
+import '../services/gemma_service.dart';
+import '../services/platform_service.dart';
+import '../utils/gradient.dart';
+import '../widgets/message_bubble.dart';
+import '../widgets/feedback_dialog.dart';
+import 'package:typewritertext/typewritertext.dart';
+
+import 'package:flutter_skeleton_ui/flutter_skeleton_ui.dart';
+
+class NewChatscreen extends StatefulWidget {
+  const NewChatscreen({super.key});
+
+  @override
+  State<NewChatscreen> createState() => _NewChatscreenState();
+}
+
+class _NewChatscreenState extends State<NewChatscreen>
+    with WindowListener, SingleTickerProviderStateMixin {
+  // late prefs.SharedPreferences _preferences;
+  final gemmaService = GemmaService(
+      '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',
+      'gemma2-9b-it');
+
+  final _controller = SidebarXController(selectedIndex: 0, extended: true);
+
+  final Map<int, List<Message>> _tabMessages = {};
+  int _currentTabIndex = 0;
+
+  // final ScrollController _tabScrollController = ScrollController();
+  // late TabController _tabController;
+  final Map<int, ScrollController> _tabScrollControllers = {};
+  final _key = GlobalKey<ScaffoldState>();
+
+  static const int MAX_API_CALLS = 3;
+  int _apiCallCount = 0;
+  DateTime? _lastApiCallTime;
+  // bool _initialMessageSent = false;
+  final Map<int, bool> _initialMessageSentForTab = {};
+  Timer? _resetTimer;
+
+  late prefs.SharedPreferences _preferences;
+
+  bool _showInitialQuestions = true; // Add this state variable
+  final GlobalKey _textFieldKey = GlobalKey(); // Add this key for positioning
+
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // _preferences;
+    // _initializePreferences();
+    _initializePreferences().then((_) {
+      // Now _preferences is initialized
+      _loadApiCallCount();
+      _setupResetTimer();
+      _loadMessages();
+    });
+    // _tabController = TabController(length: initialMessages.length, vsync: this);
+    // _tabController.addListener(_handleTabChange);
+    // Add listener to controller
+    _controller.addListener(_controllerListener);
+
+    // for (int i = 0; i <= 5; i++) {
+    //   _tabScrollControllers[i] = ScrollController();
+    // }
+    for (int i = 1; i <= 5; i++) {
+      final controller = ScrollController();
+      controller.addListener(() {
+        // Handle scroll events for each tab
+        if (controller.position.pixels == controller.position.maxScrollExtent) {
+          // At bottom of list
+          _scrollToBottom();
+        }
+      });
+      _tabScrollControllers[i] = controller;
+    }
+    // _controller.addListener(() {
+    //   final newIndex = _controller.selectedIndex;
+    //   if (newIndex != _currentTabIndex) {
+    //     setState(() {
+    //       // Store current messages for current tab
+    //       _tabMessages[_currentTabIndex] = List.from(_messages);
+
+    //       // Clear main messages list
+    //       _messages.clear();
+
+    //       // Load messages for new tab
+    //       if (_tabMessages.containsKey(newIndex)) {
+    //         _messages.addAll(_tabMessages[newIndex]!);
+    //       }
+
+    //       _currentTabIndex = newIndex;
+    //     });
+    //     _handleTabChange(newIndex);
+    //   }
+    //   // _controller.addListener(() {
+    // });
+  }
+
+  void _controllerListener() {
+    final newIndex = _controller.selectedIndex;
+    if (newIndex != _currentTabIndex) {
+      // Use temporary variables for computations
+      List<Message> updatedCurrentMessages = List.from(_messages);
+      List<Message> newTabMessages = _tabMessages[newIndex] ?? [];
+      setState(() {
+        _tabMessages[_currentTabIndex] = updatedCurrentMessages;
+        // Load messages for the new tab
+        _messages.clear();
+        _messages.addAll(newTabMessages);
+        // _messages = newTabMessages;
+        // Update the current tab index
+        _currentTabIndex = newIndex;
+        // _currentTabIndex = newIndex;
+      });
+      _handleTabChange(newIndex);
+      saveMessages();
+    }
+  }
+
+  void _startNewChat() {
+    setState(() {
+      // Clear only general chat messages
+      _messages.clear();
+      _tabMessages[0]?.clear();
+
+      // Reset initial questions visibility
+      _showInitialQuestions = true;
+
+      // Clear text field
+      _messageController.clear();
+
+      // Reset focus
+      _focusNode.requestFocus();
+    });
+
+    // Save empty state
+    saveMessages();
+  }
+
+  // void _handleTabChange() {
+  //   if (_tabController.indexIsChanging) return; // Prevent intermediate calls
+  //   final selectedTab = initialMessages[
+  //       _tabController.index]; // Assuming `tabTypes` holds the tab identifiers
+  //   final initialMessage =
+  //       initialMessages[selectedTab]?.first; // Fetch first message
+  //   if (initialMessage != null) {
+  //     handleSubmitted(initialMessage); // Send the predefined message
+  //   }
+  // }
+  void _handleTabChange(int tabIndex) {
+    // Skip if initial message already sent for this tab
+    if (_initialMessageSentForTab[tabIndex] == true) return;
+
+    // Map tab index to section name
+    String? sectionName;
+    switch (tabIndex) {
+      case 1:
+        sectionName = 'Education';
+        break;
+      case 2:
+        sectionName = 'Projects';
+        break;
+      case 3:
+        sectionName = 'Experience';
+        break;
+      case 4:
+        sectionName = 'Skills';
+      case 5:
+        sectionName = 'Fun';
+        break;
+      default:
+        return; // Exit if not a valid tab
+    }
+
+    final messages = initialMessages[sectionName];
+    if (messages != null && messages.isNotEmpty) {
+      // final userMessage = Message(
+      //   content: messages[0],
+      //   isUser: true,
+      //   timestamp: DateTime.now(),
+      //   relevantDocs: null,
+      // );
+
+      // setState(() {
+      //   _messages.add(userMessage);
+      //   _tabMessages[tabIndex] = List.from(_messages);
+      sendMessage(messages[0]);
+      _initialMessageSentForTab[tabIndex] = true;
+      // });
+
+      // Then make API call
+      // sendMessage(messages[0]);
+      // // Mark as sent
+      // _initialMessageSentForTab[tabIndex] = true;
+    }
+  }
+
+  final FocusNode _focusNode = FocusNode();
+  List<Message> _messages = [];
+  // final List<String> _ollamaMessages = [];
+  bool _isLoading = false;
+  bool _isGenerating = false;
+
+  final introController = TypeWriterController(
+      text: "I am Anisha's AI assistant.",
+      duration: const Duration(milliseconds: 90));
+
+  final Map<String, String> _availableModels = {
+    'Llama 3 (8B)': 'lama3-8b-8192',
+    'Gemma 2 (9B)': 'gemma2-9b-it',
+    'Mixtral 8 (7B)': 'mixtral-8x7b-32768',
+  };
+
+  String? _currentModel;
+  bool _isLoadingModels = false;
+
+  bool _showDropdown = true;
+  final ScrollController _mainScrollController = ScrollController();
+  static const String _storageKey = 'chat_history';
+
+  // Add this list of starter questions
+  final List<String> _starterQuestions = [
+    "Tell me about Anisha's technical skills",
+    "What projects has Anisha worked on?",
+    "What are Anisha's career aspirations?",
+    "What are Anisha's achievements?",
+    "Tell me about Anisha's education",
+    "How can I collaborate with Anisha?",
+    "What programming languages does Anisha know?",
+    "What are Anisha's research interests?",
+  ];
+
+  final Map<String, List<String>> initialMessages = {
+    'Education': [
+      "Tell me about Anisha's education history.",
+      "What is Anisha's college major?",
+      "Where did Anisha complete her diploma, and in what field?",
+      "What is Anisha currently studying?",
+    ],
+    'Projects': [
+      "What projects has Anisha worked on?",
+      "What is Anisha's most notable academic project?",
+      "What are Anisha's research projects?",
+      "What is Anisha's AI-Driven Legal Research Engine project?",
+    ],
+    'Experience': [
+      "What is Anisha's work history?",
+      "Can you summarize Anisha's work as an intern at Aerovania?",
+      "Tell me about Anisha's hackathon experience.",
+      "What is Anisha's experience in team leadership?",
+    ],
+    'Skills': [
+      "Which certifications has Anisha completed?",
+      "What tools and frameworks is Anisha proficient in?",
+      "Which programming languages does Anisha know?",
+      "Tell me about Anisha's technical skills",
+    ],
+    'Fun': [
+      "What's one fun fact about Anisha?",
+      "What is her favorite anime?",
+      "Can you decribe her is in one word?",
+      "Who's her favorite author or book?",
+      "What's the coolest tech gadget she owns?",
+    ],
+  };
+
+  // Add this map to store section indices
+  final Map<String, int> sectionIndices = {
+    'Education': 1,
+    'Projects': 2,
+    'Experience': 3,
+    'Skills': 4,
+    'Fun': 5,
+    'General': 0, // 'Main': 5,
+  };
+
+// Add helper method to get index
+  int getSectionIndex(String section) {
+    return sectionIndices[section] ??
+        0; // Default to main (5) if not found // 5 earlier
+  }
+
+  Future<void> _loadApiCallCount() async {
+    // final sharedPrefs = await prefs.SharedPreferences.getInstance();
+    setState(() {
+      _apiCallCount = _preferences.getInt('api_call_count') ?? 0;
+      final lastCallTimeStr = _preferences.getString('last_api_call_time');
+      _lastApiCallTime =
+          lastCallTimeStr != null ? DateTime.parse(lastCallTimeStr) : null;
+    });
+  }
+
+  void _setupResetTimer() {
+    // Reset API call count every hour
+    _resetTimer = Timer.periodic(const Duration(hours: 1), (timer) {
+      _resetApiCallCount();
+    });
+  }
+
+  Future<void> _resetApiCallCount() async {
+    // final preference = await prefs.SharedPreferences.getInstance();
+    await _preferences.setInt('api_call_count', 0);
+    setState(() {
+      _apiCallCount = 0;
+    });
+  }
+
+  Future<bool> _canMakeApiCall() async {
+    if (_apiCallCount >= MAX_API_CALLS) {
+      final now = DateTime.now();
+      if (_lastApiCallTime != null &&
+          now.difference(_lastApiCallTime!).inHours < 1) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Rate limit reached. Please try again later.'),
+          ),
+        );
+        return false;
+      }
+      await _resetApiCallCount();
+    }
+    return true;
+  }
+
+  Future<void> _updateApiCallCount() async {
+    // final sharedPrefs = await prefs.SharedPreferences.getInstance();
+    _apiCallCount++;
+    _lastApiCallTime = DateTime.now();
+    await _preferences.setInt('api_call_count', _apiCallCount);
+    await _preferences.setString(
+        'last_api_call_time', _lastApiCallTime!.toIso8601String());
+  }
+
+  void _setupWebBeforeUnload() {
+    html.window.onBeforeUnload.listen((event) async {
+      // Show the feedback dialog
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const FeedbackDialog(),
+      );
+
+      if (result != true) {
+        event.preventDefault();
+      }
+    });
+  }
+
+  Future<void> _initializePreferences() async {
+    _preferences = await prefs.SharedPreferences.getInstance();
+    _loadMessages();
+  }
+
+  // void _loadMessages(prefs.SharedPreferences preferences) {
+  //   final String? messagesJson = preferences.getString(_storageKey);
+  //   if (messagesJson != null) {
+  //     final List<dynamic> decoded = jsonDecode(messagesJson);
+  //     setState(() {
+  //       _messages.addAll(
+  //         decoded.map((msg) => Message.fromJson(msg)).toList(),
+  //       );
+  //     });
+  //   }
+  // }
+
+  // Future<void> saveMessages() async {
+  //   final String messagesJson =
+  //       jsonEncode(_messages.map((m) => m.toJson()).toList());
+  //   await _preferences.setString(_storageKey, messagesJson);
+  // }
+
+  // Future<void> _loadAvailableModels() async {
+  //   setState(() => _isLoadingModels = true);
+  //   try {
+  //     await Future.delayed(const Duration(seconds: 1));
+  //   } finally {
+  //     setState(() => _isLoadingModels = false);
+  //   }
+  // }
+  Future<void> saveMessages() async {
+    // Save messages for current tab
+    final String messagesJson = jsonEncode(
+        _tabMessages[_currentTabIndex]?.map((m) => m.toJson()).toList() ?? []);
+    await _preferences.setString(
+        '${_storageKey}_$_currentTabIndex', messagesJson);
+  }
+
+  void _loadMessages() {
+    // Load messages for each tab
+    for (int i = 1; i <= 5; i++) {
+      final String? messagesJson = _preferences.getString('${_storageKey}_$i');
+      if (messagesJson != null) {
+        final List<dynamic> decoded = jsonDecode(messagesJson);
+        _tabMessages[i] = decoded.map((msg) => Message.fromJson(msg)).toList();
+      }
+    }
+
+    // Load messages for current tab
+    _messages.addAll(_tabMessages[_currentTabIndex] ?? []);
+  }
+
+  // Add this method to stop generation
+  void _stopGeneration() {
+    setState(() {
+      _isGenerating = false;
+      _isLoading = false;
+      _messages.add(Message(
+        content:
+            "Sorry, my last response took too long. Feel free to ask another question!",
+        isUser: false,
+        timestamp: DateTime.now(),
+        relevantDocs: null,
+      ));
+    });
+    _scrollToBottom();
+  }
+
+  // Add this method to handle question selection
+  void _onQuestionTap(String question) {
+    _messageController.text = question;
+    handleSubmitted(question);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchRelevantDocuments(
+      // List<Map<String, dynamic>> res;
+      String queryText) async {
+    try {
+      final url = Uri.parse("http://127.0.0.1:8080/query/");
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"query_text": queryText}),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> results = jsonDecode(response.body)["results"];
+        return results.map((result) {
+          return {
+            "question": result["question"],
+            "answer": result["answer"],
+          };
+        }).toList();
+      } else {
+        throw Exception("Failed to fetch relevant documents");
+      }
+    } catch (e) {
+      print("Error fetching documents: $e");
+      return [];
+    }
+  }
+
+  Future<void> sendMessage(String content) async {
+    if (content.trim().isEmpty) return;
+
+    // Create and display user message immediately
+    final userMessage = Message(
+      content: content.trim(),
+      isUser: true,
+      timestamp: DateTime.now(),
+      relevantDocs: null, // Initially no relevant docs
+    );
+
+    setState(() {
+      _messages.add(userMessage);
+      _tabMessages[_currentTabIndex] = List.from(_messages);
+      _isLoading = true;
+      _isGenerating = true;
+    });
+
+    // Clear input and save immediately
+    _messageController.clear();
+    _scrollToBottom();
+    await saveMessages();
+
+    final startTime = DateTime.now();
+    String enhancedPrompt = '';
+
+    try {
+      // Fetch relevant documents after showing user message
+      final relevantDocs = await fetchRelevantDocuments(content);
+      if (!mounted) return;
+
+      // Build enhanced prompt with relevant docs
+      if (relevantDocs.isNotEmpty) {
+        enhancedPrompt += "\n\nRelevant context:\n";
+        for (Map<String, dynamic> doc in relevantDocs) {
+          final question = doc['question'] as String? ?? 'No question';
+          final answer = doc['answer'] as String? ?? 'No answer';
+          enhancedPrompt += "Q: $question\nA: $answer\n";
+        }
+        debugPrint('enhancedprompt: $enhancedPrompt');
+      }
+
+      // Generate response
+      final response = await gemmaService.generateResponse(
+          content, GroqMessageRole.user, enhancedPrompt);
+      debugPrint('response $response');
+
+      if (mounted && _isGenerating) {
+        final endTime = DateTime.now();
+        final generationTime = endTime.difference(startTime);
+
+        setState(() {
+          _messages.add(Message(
+            content: response,
+            isUser: false,
+            timestamp: DateTime.now(),
+            relevantDocs: null,
+            generationTime: generationTime,
+          ));
+          _isGenerating = false;
+        });
+
+        await saveMessages();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _messages.add(Message(
+            content: 'Error: Failed to get response. Error: $e',
+            isUser: false,
+            timestamp: DateTime.now(),
+            relevantDocs: null,
+          ));
+          _isGenerating = false;
+        });
+        await saveMessages();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isGenerating = false;
+        });
+        _scrollToBottom();
+        _focusNode.requestFocus();
+      }
+    }
+  }
+
+  void handleSubmitted(String text) {
+    setState(() {
+      _isGenerating = true;
+    });
+    debugPrint('texttttt: $text');
+    if (!_isLoading) {
+      sendMessage(text);
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = _tabScrollControllers[_currentTabIndex];
+
+      if (_mainScrollController.hasClients) {
+        // Use mainScrollController instead
+        _mainScrollController.animateTo(
+          _mainScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+
+      if (controller != null && controller.hasClients) {
+        controller.animateTo(
+          controller.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  // Add this method to handle first message and hide initial questions
+  void _handleFirstMessage(String question) {
+    setState(() {
+      _showInitialQuestions = false;
+      _messageController.clear();
+      // _isLoading = true;
+      _isGenerating = true;
+    });
+    _onQuestionTap(question);
+  }
+
+  // Add this method to show question popup
+  void _showQuestionPopup(BuildContext context, RenderBox textFieldBox) {
+    try {
+      if (_starterQuestions.isEmpty) return;
+
+      final RenderBox overlay =
+          Overlay.of(context).context.findRenderObject() as RenderBox;
+
+      final buttonPosition =
+          textFieldBox.localToGlobal(Offset.zero, ancestor: overlay);
+      final position = RelativeRect.fromLTRB(
+          buttonPosition.dx,
+          buttonPosition.dy, // Position above button with spacing
+          buttonPosition.dx + textFieldBox.size.width,
+          buttonPosition.dy);
+
+      showMenu<String>(
+        context: context,
+        position: position,
+        constraints: const BoxConstraints(
+          maxWidth: 300, // Fixed width for popup
+          maxHeight: 240, // Height with spacing
+        ),
+        items: _starterQuestions.map((String question) {
+          return PopupMenuItem<String>(
+            value: question,
+            child: Text(
+              question,
+              style: const TextStyle(fontSize: 14),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+        }).toList(),
+      ).then((String? question) {
+        if (question != null) {
+          _onQuestionTap(question);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error showing question popup: $e');
+    }
+    // final position = RelativeRect.fromRect(
+    //   Rect.fromPoints(
+    //     textFieldBox.localToGlobal(Offset(0, -textFieldBox.size.height),
+    //         ancestor: overlay),
+    //     textFieldBox.localToGlobal(textFieldBox.size.bottomRight(Offset.zero),
+    //         ancestor: overlay),
+    //   ),
+    //   Offset.zero & overlay.size,
+    // );
+  }
+
+  void _showQuestionPopupFotTab(
+      BuildContext context, RenderBox buttonBox, String tab) async {
+    try {
+      final questions = initialMessages[tab] ?? [];
+      if (questions.isEmpty) return;
+
+      final RenderBox overlay =
+          Overlay.of(context).context.findRenderObject() as RenderBox;
+
+      // Calculate position just above the question button
+      final buttonPosition =
+          buttonBox.localToGlobal(Offset.zero, ancestor: overlay);
+      final position = RelativeRect.fromLTRB(
+          buttonPosition.dx,
+          buttonPosition.dy, // Position above button with spacing
+          buttonPosition.dx + buttonBox.size.width,
+          buttonPosition.dy);
+
+      final String? selectedQuestion = await showMenu<String>(
+        context: context,
+        position: position,
+        constraints: const BoxConstraints(
+          maxWidth: 300, // Fixed width for popup
+          maxHeight: 240, // Height with spacing
+        ),
+        items: questions.map((String question) {
+          return PopupMenuItem<String>(
+            value: question,
+            child: Text(
+              question,
+              style: const TextStyle(fontSize: 14),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+        }).toList(),
+      );
+
+      if (selectedQuestion != null && context.mounted) {
+        _onQuestionTap(selectedQuestion);
+      }
+    } catch (e) {
+      debugPrint('Error showing question popup: $e');
+    }
+  }
+
+  Widget _buildStopGenerationButton() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Center(
+        child: ElevatedButton.icon(
+          onPressed: _stopGeneration,
+          icon: const Icon(Icons.stop_circle),
+          label: const Text('Stop Generating'),
+          style: ElevatedButton.styleFrom(
+            // backgroundColor: Theme.of(context).colorScheme.error,
+            foregroundColor: Theme.of(context).colorScheme.onError,
+            backgroundColor: Colors.redAccent.shade100,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Add method to clear history
+  // Future<void> _clearHistory() async {
+  //   setState(() {
+  //     _messages.clear();
+  //   });
+  //   await _preferences.remove(_storageKey);
+  // }
+
+  // Future<void> _clearHistory() async {
+  //   setState(() {
+  //     _messages.clear();
+  //     _tabMessages.clear();
+  //   });
+  //   // Clear all tab messages from storage
+  //   // for (int i = 0; i <= 5; i++) {
+  //   //   await _preferences.remove('${_storageKey}_$i');
+  //   // }
+  // }
+
+  Future<void> _clearHistory() async {
+    setState(() {
+      // Clear messages
+      _messages.clear();
+      _tabMessages.clear();
+
+      // Reset tab states
+      for (int i = 1; i < 5; i++) {
+        _tabMessages[i] = [];
+        _initialMessageSentForTab[i] = false;
+        _tabScrollControllers[i]!.jumpTo(0);
+      }
+
+      // Reset current states
+      _isLoading = false;
+      _isGenerating = false;
+      _currentTabIndex = 0;
+
+      // Clear text input
+      _messageController.clear();
+    });
+
+    // Clear all stored messages from SharedPreferences
+    final sharedPrefs = await prefs.SharedPreferences.getInstance();
+    for (int i = 1; i < 5; i++) {
+      await sharedPrefs.remove('${_storageKey}_$i');
+    }
+    await sharedPrefs.remove(_storageKey);
+  }
+
+  Future<bool> _onWillPop() async {
+    if (PlatformService.isDesktop) {
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const FeedbackDialog(),
+      );
+      return result ?? false;
+    }
+    return true;
+  }
+
+  @override
+  void onWindowClose() async {
+    if (PlatformService.isDesktop) {
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const FeedbackDialog(),
+      );
+      if (result != null) {
+        await windowManager.destroy();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    if (PlatformService.isDesktop) {
+      windowManager.removeListener(this);
+    }
+    _controller.removeListener(() {});
+    _controller.dispose();
+    _mainScrollController.dispose();
+    // helloController.dispose();
+    introController.dispose();
+    _resetTimer?.cancel();
+
+    for (var controller in _tabScrollControllers.values) {
+      controller.removeListener(() {});
+      controller.dispose();
+    }
+
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Builder(
+        builder: (context) {
+          final isSmallScreen = MediaQuery.of(context).size.width < 600;
+
+          return SafeArea(
+            child: Scaffold(
+              // appBar: buildAppBar(),
+              drawer: SideNavbar(
+                controller: _controller,
+                onNewChat: _startNewChat,
+              ),
+              body: Row(
+                children: [
+                  if (!isSmallScreen)
+                    SideNavbar(
+                        controller: _controller, onNewChat: _startNewChat),
+                  Expanded(
+                      child: Center(
+                    child: AnimatedBuilder(
+                      animation: _controller,
+                      builder: (context, child) {
+                        switch (_controller.selectedIndex) {
+                          case 0:
+                            _key.currentState?.closeDrawer();
+                            return buildMainChatScreen(context);
+                          // return buildTabContent('Education');
+                          case 1:
+                            _key.currentState?.closeDrawer();
+                            return buildTabContent('Education');
+                          case 2:
+                            _key.currentState?.closeDrawer();
+                            return buildTabContent('Projects');
+                          case 3:
+                            _key.currentState?.closeDrawer();
+                            return buildTabContent('Experience');
+                          case 4:
+                            _key.currentState?.closeDrawer();
+                            return buildTabContent('Skills');
+                          case 5:
+                            _key.currentState?.closeDrawer();
+                            return buildTabContent('Fun');
+                          default:
+                            return buildMainChatScreen(context);
+                        }
+                      },
+                    ),
+                  ))
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  buildAppBar(bool isMain) {
+    return AppBar(
+      automaticallyImplyLeading: false,
+      // title: const Text('Anisha\'s AI Assistant'),
+      centerTitle: true,
+      title: _showDropdown
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(45),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 5.0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _currentModel,
+                      isExpanded: false,
+                      hint: const Text('Gemma 2 (9B)'),
+                      items: _availableModels.entries.map((entry) {
+                        return DropdownMenuItem<String>(
+                          value: entry.value,
+                          child: Text(entry.key),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _currentModel = newValue;
+                            gemmaService.switchModel(newValue);
+                            _messages.clear();
+                            // _ollamaMessages.clear();
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            )
+          : null,
+      actions: [
+        if (isMain)
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Clear History'),
+                content: const Text(
+                    'Are you sure you want to clear all chat history?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      _clearHistory();
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Clear'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  buildMainChatScreen(BuildContext context) {
+    final isSmallScreen = MediaQuery.of(context).size.width < 600;
+    return Scaffold(
+      appBar: buildAppBar(true),
+      body: Column(
+        children: [
+          if (_messages.isEmpty)
+            // Center(
+            //   child: Column(
+            //     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            //     crossAxisAlignment: CrossAxisAlignment.center,
+            //     children: [
+            //       GradientText(
+            //         'Hello!',
+            //         colors: const [
+            //           Color.fromARGB(233, 80, 172, 247),
+            //           Color.fromARGB(228, 249, 100, 100)
+            //         ],
+            //         style: const TextStyle(
+            //           fontSize: 35,
+            //           fontWeight: FontWeight.w600,
+            //         ),
+            //       ),
+            //       const SizedBox(height: 15),
+            //       TypeWriter(
+            //         controller: introController,
+            //         builder: (context, value) {
+            //           return GradientText(
+            //             value.text,
+            //             colors: const [
+            //               Color.fromARGB(233, 80, 172, 247),
+            //               Color.fromARGB(228, 249, 100, 100)
+            //             ],
+            //             style: const TextStyle(
+            //               fontSize: 25,
+            //               fontWeight: FontWeight.w400,
+            //             ),
+            //           );
+            //         },
+            //       ),
+            //       const SizedBox(height: 25),
+            //       Container(
+            //         width: MediaQuery.of(context).size.width * 0.8,
+            //         padding: const EdgeInsets.all(20),
+            //         decoration: BoxDecoration(
+            //           color: Colors.white.withOpacity(0.1),
+            //           borderRadius: BorderRadius.circular(20),
+            //         ),
+            //         child: Column(
+            //           crossAxisAlignment: CrossAxisAlignment.start,
+            //           children: const [
+            //             ListTile(
+            //               leading:
+            //                   Icon(Icons.circle, size: 8, color: Colors.white),
+            //               title: Text(
+            //                   'I can help you with general knowledge questions',
+            //                   style: TextStyle(color: Colors.white)),
+            //               minLeadingWidth: 10,
+            //             ),
+            //             ListTile(
+            //               leading:
+            //                   Icon(Icons.circle, size: 8, color: Colors.white),
+            //               title: Text('Assist you with problem-solving',
+            //                   style: TextStyle(color: Colors.white)),
+            //               minLeadingWidth: 10,
+            //             ),
+            //             ListTile(
+            //               leading:
+            //                   Icon(Icons.circle, size: 8, color: Colors.white),
+            //               title: Text('Provide explanations on various topics',
+            //                   style: TextStyle(color: Colors.white)),
+            //               minLeadingWidth: 10,
+            //             ),
+            //           ],
+            //         ),
+            //       ),
+            //       const SizedBox(height: 25),
+            //       GradientText(
+            //         'Ask me anything, and I\'ll guide you through! 😊',
+            //         colors: const [
+            //           Color.fromARGB(233, 80, 172, 247),
+            //           Color.fromARGB(228, 249, 100, 100)
+            //         ],
+            //         style: const TextStyle(
+            //           fontSize: 16,
+            //           fontWeight: FontWeight.w400,
+            //         ),
+            //       ),
+            //     ],
+            //   ),
+            // ),
+            Center(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    GradientText(
+                      'Hello!',
+                      colors: const [
+                        Color.fromARGB(233, 80, 172, 247),
+                        Color.fromARGB(228, 249, 100, 100),
+                      ],
+                      style: TextStyle(
+                        fontSize: MediaQuery.of(context).size.width * 0.027,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    // SizedBox(
+                    //     height: MediaQuery.of(context).size.height * 0.0000),
+                    TypeWriter(
+                      controller: introController,
+                      builder: (context, value) {
+                        return GradientText(
+                          value.text,
+                          colors: const [
+                            Color.fromARGB(233, 80, 172, 247),
+                            Color.fromARGB(228, 249, 100, 100),
+                          ],
+                          style: TextStyle(
+                            fontSize: MediaQuery.of(context).size.width * 0.027,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        );
+                      },
+                    ),
+                    SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+                    BorderGradient(
+                      child: Container(
+                        height: MediaQuery.of(context).size.height *
+                            (isSmallScreen ? 0.35 : 0.35),
+                        width: MediaQuery.of(context).size.width * 0.5,
+                        padding: EdgeInsets.all(
+                            MediaQuery.of(context).size.width * 0.02),
+                        decoration: BoxDecoration(
+                          // color: Colors.blue.withOpacity(0.4),
+                          color: Colors.white70,
+                          borderRadius: BorderRadius.circular(25),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.8),
+                            width: MediaQuery.of(context).size.width * 0.003,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius:
+                                  MediaQuery.of(context).size.width * 0.02,
+                              offset: Offset(
+                                  0, MediaQuery.of(context).size.width * 0.01),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                                style: TextStyle(
+                                    color: Colors.black54,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize:
+                                        MediaQuery.of(context).size.width *
+                                            0.015),
+                                textAlign: TextAlign.justify,
+                                "And you've found Anisha's digital portfolio, and I'm here to help you explore it. Got a question about her research, certifications, or upcoming goals? Just ask me. I've got all the answers! Ask me anything, and I'll guide you through! 😊"),
+                            // Text(
+                            //     style: TextStyle(
+                            //         color: Colors.black54,
+                            //         fontSize: MediaQuery.of(context).size.width *
+                            //             0.015),
+                            //     textAlign: TextAlign.center,
+                            //     'Ask me anything, and I\'ll guide you through! 😊'),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.info_outline,
+                              size: 16, color: Colors.grey[600]),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Disclaimer: Responses may not always be accurate or complete.',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize:
+                                  MediaQuery.of(context).size.width * 0.01,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ),
+          Expanded(
+            child: ListView.builder(
+              controller:
+                  _mainScrollController, // Use the new scroll controller
+              padding: const EdgeInsets.all(16),
+              itemCount: _messages.length +
+                  (_isGenerating ? 1 : 0) +
+                  (_isLoading ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index >= _messages.length) {
+                  if (_isGenerating && index == _messages.length) {
+                    return _buildStopGenerationButton(); // Show stop button
+                  }
+                  if (_isLoading &&
+                      index == _messages.length + (_isGenerating ? 1 : 0)) {
+                    return Container(
+                      margin: const EdgeInsets.only(top: 8.0),
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.75,
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: SkeletonParagraph(
+                        style: SkeletonParagraphStyle(
+                          lines: 5,
+                          spacing: 9,
+                          lineStyle: SkeletonLineStyle(
+                            randomLength: true,
+                            height: 10,
+                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            minLength: MediaQuery.of(context).size.width / 3,
+                            maxLength: MediaQuery.of(context).size.width / 2,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                }
+                final message = _messages[index];
+                return MessageBubble(message: message);
+              },
+            ),
+          ),
+          // if (_showInitialQuestions)
+          //   Container(
+          //     padding: const EdgeInsets.symmetric(vertical: 8),
+          //     decoration: BoxDecoration(
+          //       color: Theme.of(context).colorScheme.surface,
+          //       border: Border(
+          //         top: BorderSide(
+          //           color: Theme.of(context).colorScheme.outline,
+          //         ),
+          //       ),
+          //     ),
+          //     child: Column(
+          //       crossAxisAlignment: CrossAxisAlignment.center,
+          //       children: [
+          //         Padding(
+          //           padding: const EdgeInsets.all(10),
+          //           child: Text(
+          //             'Start the conversation',
+          //             style: Theme.of(context).textTheme.titleSmall,
+          //           ),
+          //         ),
+          //         SingleChildScrollView(
+          //           scrollDirection: Axis.horizontal,
+          //           padding: const EdgeInsets.symmetric(horizontal: 8),
+          //           child: Row(
+          //             children: [
+          //               for (var question in _starterQuestions)
+          //                 Padding(
+          //                   padding: const EdgeInsets.symmetric(horizontal: 4),
+          //                   child: ActionChip(
+          //                     label: Text(question),
+          //                     onPressed: () => _handleFirstMessage(question),
+          //                   ),
+          //                 ),
+          //             ],
+          //           ),
+          //         ),
+          //       ],
+          //     ),
+          //   ),
+          // if (_isLoading) SkeletonParagraph(),
+          // const Padding(
+          // padding: EdgeInsets.all(8.0),
+          // child: LinearProgressIndicator(),
+          // ),
+          SafeArea(
+            child: Column(
+              children: [
+                if (_messages.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      border: Border(
+                        top: BorderSide(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Text(
+                            // 'Start the conversation',
+                            'Not sure where to begin?',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                        ),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Row(
+                            children: [
+                              for (var question in _starterQuestions)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 4),
+                                  child: ActionChip(
+                                    label: Text(question),
+                                    onPressed: () =>
+                                        _handleFirstMessage(question),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Stack(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8.0),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        border: Border(
+                          top: BorderSide(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          if (!_showInitialQuestions) // Add question button when initial questions are hidden
+                            IconButton(
+                              icon: const Icon(Icons.quiz_outlined),
+                              onPressed: () {
+                                final RenderBox textField = _textFieldKey
+                                    .currentContext!
+                                    .findRenderObject() as RenderBox;
+                                _showQuestionPopup(context, textField);
+                              },
+                            ),
+                          Expanded(
+                            child: TextField(
+                              key: _textFieldKey,
+                              controller: _messageController,
+                              focusNode: _focusNode,
+                              decoration: InputDecoration(
+                                hintText: 'Try asking: \'Who is Anisha?\' ',
+                                border: OutlineInputBorder(),
+                                suffixIcon: _isGenerating
+                                    ? IconButton(
+                                        icon: const Icon(Icons.stop_circle),
+                                        onPressed: _stopGeneration,
+                                      )
+                                    : null,
+                              ),
+                              maxLines: null,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: (text) {
+                                if (!_isLoading &&
+                                    !_isGenerating &&
+                                    text.trim().isNotEmpty) {
+                                  handleSubmitted(text);
+                                }
+                              },
+                              enabled: !_isLoading &&
+                                  !_isGenerating, // Disable during generation
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.send),
+                            onPressed: _isLoading
+                                // _isGenerating ||
+                                // _messageController.text.trim().isEmpty)
+                                ? null
+                                : () =>
+                                    handleSubmitted(_messageController.text),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // buildTabContent(String type) {
+  //   return Column(
+  //     children: [
+  //       // if (_messages.isNotEmpty)
+  //       Expanded(
+  //         child: ListView.builder(
+  //           controller: _tabScrollController, // Use the new scroll controller
+  //           final ScrollController _tabScrollController = ScrollController();
+  //           padding: const EdgeInsets.all(16),
+  //           itemCount: _messages.length + (_isGenerating ? 1 : 0),
+  //           itemBuilder: (context, index) {
+  //             if (index == _messages.length) {
+  //               return _buildStopGenerationButton();
+  //             }
+  //             final message = _messages[index];
+  //             return MessageBubble(message: message);
+  //           },
+  //         ),
+  //       ),
+  //       /////// if (widget.initialMessages.isNotEmpty)
+  //       Container(
+  //         padding: const EdgeInsets.symmetric(vertical: 8),
+  //         decoration: BoxDecoration(
+  //           color: Theme.of(context).colorScheme.surface,
+  //           border: Border(
+  //             top: BorderSide(
+  //               color: Theme.of(context).colorScheme.outline,
+  //             ),
+  //           ),
+  //         ),
+  //         child: Column(
+  //           crossAxisAlignment: CrossAxisAlignment.center,
+  //           children: [
+  //             Padding(
+  //               padding: const EdgeInsets.all(10),
+  //               child: Text(
+  //                 'Start the conversation',
+  //                 style: Theme.of(context).textTheme.titleSmall,
+  //               ),
+  //             ),
+  //             SingleChildScrollView(
+  //               scrollDirection: Axis.horizontal,
+  //               padding: const EdgeInsets.symmetric(horizontal: 8),
+  //               child: Row(
+  //                 children: [
+  //                   ///// for (var question
+  //                   /////     in widget.initialMessages[_selectedTab]!)
+  //                   Padding(
+  //                     padding: const EdgeInsets.symmetric(horizontal: 4),
+  //                     child: ActionChip(
+  //                       label: Text('question'), ////
+  //                       onPressed: () => _handleFirstMessage('question'), ////
+  //                     ),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //       if (_isLoading)
+  //         const Padding(
+  //           padding: EdgeInsets.all(8.0),
+  //           child: LinearProgressIndicator(),
+  //         ),
+  //       SafeArea(
+  //         child: Stack(
+  //           children: [
+  //             Container(
+  //               padding: const EdgeInsets.all(8.0),
+  //               decoration: BoxDecoration(
+  //                 color: Theme.of(context).colorScheme.surface,
+  //                 border: Border(
+  //                   top: BorderSide(
+  //                     color: Theme.of(context).colorScheme.outline,
+  //                   ),
+  //                 ),
+  //               ),
+  //               child: Row(
+  //                 children: [
+  //                   if (!_showInitialQuestions) // Add question button when initial questions are hidden
+  //                     IconButton(
+  //                       icon: const Icon(Icons.quiz_outlined),
+  //                       onPressed: () {
+  //                         final RenderBox textField =
+  //                             _textFieldKey.currentContext!.findRenderObject()
+  //                                 as RenderBox;
+  //                         _showQuestionPopup(context, textField);
+  //                       },
+  //                     ),
+  //                   Expanded(
+  //                     child: TextField(
+  //                       key: _textFieldKey,
+  //                       controller: _messageController,
+  //                       focusNode: _focusNode,
+  //                       decoration: InputDecoration(
+  //                         hintText: 'Ask about her ${initialMessages[type]!}',
+  //                         border: OutlineInputBorder(),
+  //                         suffixIcon: _isGenerating
+  //                             ? IconButton(
+  //                                 icon: const Icon(Icons.stop_circle),
+  //                                 onPressed: _stopGeneration,
+  //                               )
+  //                             : null,
+  //                       ),
+  //                       maxLines: null,
+  //                       textInputAction: TextInputAction.send,
+  //                       onSubmitted: handleSubmitted,
+  //                       enabled: !_isGenerating, // Disable during generation
+  //                     ),
+  //                   ),
+  //                   const SizedBox(width: 8),
+  //                   IconButton(
+  //                     icon: const Icon(Icons.send),
+  //                     onPressed: _isLoading
+  //                         ? null
+  //                         : () => handleSubmitted(_messageController.text),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
+
+///////////////////////////////////////
+  ///
+  /// look and check code generated by copilot
+  ///
+///////////////////////////////////////
+  Widget buildTabContent(String type) {
+    final messages = initialMessages[type] ?? []; // Safeguard for null
+    // final tabMessages = _tabMessages[getSectionIndex(type)] ?? [];
+    final tabIndex = getSectionIndex(type);
+
+    return Scaffold(
+      appBar: buildAppBar(false),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              controller:
+                  _tabScrollControllers[tabIndex], // Use a dedicated controller
+              padding: const EdgeInsets.all(16),
+              itemCount: _messages.length +
+                  (_isGenerating ? 1 : 0) +
+                  (_isLoading ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index >= _messages.length) {
+                  if (_isGenerating && index == _messages.length) {
+                    return _buildStopGenerationButton(); // Show stop button
+                  }
+                  if (_isLoading &&
+                      index == _messages.length + (_isGenerating ? 1 : 0)) {
+                    return Container(
+                      margin: const EdgeInsets.only(top: 8.0),
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.75,
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: SkeletonParagraph(
+                        style: SkeletonParagraphStyle(
+                          lines: 5,
+                          spacing: 9,
+                          lineStyle: SkeletonLineStyle(
+                            randomLength: true,
+                            height: 10,
+                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                            minLength: MediaQuery.of(context).size.width / 3,
+                            maxLength: MediaQuery.of(context).size.width / 2,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  // if (_isGenerating) {
+                  //   return _buildStopGenerationButton();
+                }
+                final message = _messages[index];
+                return MessageBubble(message: message);
+              },
+            ),
+          ),
+          if (messages.isEmpty && !_isLoading)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                border: Border(
+                  top: BorderSide(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Text(
+                      // 'Start the conversation',
+                      'Not sure where to begin?',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      children: [
+                        for (var question in messages)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: ActionChip(
+                              label: Text(question),
+                              onPressed: () => _handleFirstMessage(question),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          // if (_isLoading) SkeletonParagraph(),
+          // const Padding(
+          //   padding: EdgeInsets.all(8.0),
+          //   // child: LinearProgressIndicator(),
+          // ),
+          Row(
+            children: [
+              // if (!_initialMessageSentForTab[tabIndex]!)
+              IconButton(
+                icon: const Icon(Icons.quiz_outlined),
+                onPressed: () {
+                  final RenderBox textField = _textFieldKey.currentContext!
+                      .findRenderObject() as RenderBox;
+                  _showQuestionPopupFotTab(context, textField, type);
+                },
+              ),
+              Expanded(
+                child: TextField(
+                  key: _textFieldKey,
+                  controller: _messageController,
+                  focusNode: _focusNode,
+                  decoration: InputDecoration(
+                    hintText: type == 'Fun'
+                        ? 'Ask something funny'
+                        : 'Ask about $type', // Lets have some fun
+                    border: const OutlineInputBorder(),
+                    suffixIcon: _isGenerating
+                        ? IconButton(
+                            icon: const Icon(Icons.stop_circle),
+                            onPressed: _stopGeneration,
+                          )
+                        : null,
+                  ),
+                  maxLines: null,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: handleSubmitted,
+                  enabled: !_isGenerating,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.send),
+                onPressed: _isLoading
+                    ? null
+                    : () => handleSubmitted(_messageController.text),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
