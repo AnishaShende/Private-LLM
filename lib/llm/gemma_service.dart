@@ -4,9 +4,9 @@ import 'package:private_llm/llm/prompts.dart';
 class GemmaService {
   final Groq _groq;
   String modelId;
-  late final GroqChat chat;
+  late GroqChat chat;
   final List<Map<String, String>> _conversationHistory = [];
-  
+
   GemmaService(String apiKey, this.modelId) : _groq = Groq(apiKey) {
     initChat();
   }
@@ -21,6 +21,12 @@ class GemmaService {
     );
 
     chat.addMessageWithoutSending(Prompts.systemPrompt);
+  }
+
+  void cancelGeneration() {
+    print('stop generation called');
+    chat.settings.stop!;
+    print('stopped');
   }
 
   void switchModel(String newModelId) {

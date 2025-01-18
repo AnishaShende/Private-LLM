@@ -51,7 +51,7 @@ class _NewChatscreenState extends State<NewChatscreen>
   final Map<int, ScrollController> _tabScrollControllers = {};
   final _key = GlobalKey<ScaffoldState>();
 
-  static const int MAX_API_CALLS = 50;
+  static const int MAX_API_CALLS = 9;
   int _apiCallCount = 0;
   DateTime? _lastApiCallTime;
   final Map<int, bool> _initialMessageSentForTab = {};
@@ -334,6 +334,7 @@ class _NewChatscreenState extends State<NewChatscreen>
 
   // method to stop generation
   void _stopGeneration() {
+    gemmaService.cancelGeneration();
     setState(() {
       _isGenerating = false;
       _isLoading = false;
@@ -467,6 +468,14 @@ class _NewChatscreenState extends State<NewChatscreen>
         });
 
         // Simulate streaming
+        // gemmaService.chat.stream.listen((event) {
+        //   event.when(
+        //       request: (requestEvent) {},
+        //       response: (responseEvent) {
+        //         print(
+        //             'Received response: ${responseEvent.response.choices.first.message}');
+        //       });
+        // });
         await for (final chunk in StreamService.simulateStream(response)) {
           if (!mounted || !_isGenerating) break;
 
