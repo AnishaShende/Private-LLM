@@ -3,18 +3,19 @@ import 'package:http/http.dart' as http;
 import 'package:gsheets/gsheets.dart';
 import 'sheets_config.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class FeedbackService {
-  static final String _webAppUrl = dotenv.env['FEEDBACK_WEB_URL'] ?? '';
+  static const String _webAppUrl =
+      'https://script.google.com/macros/s/AKfycbyskNJRZOHoZV1Jxp6wBx-IMYJ_q7LxY9RO5yVIcNlmrSnSEeyWoku3gvWnDcSU3X5aTA/exec';
   static final _gsheets = GSheets(SheetsConfig.credentials);
-  static final _spreadsheetId = SheetsConfig.spreadsheetId;
+  static const _spreadsheetId = "1mXGT1z6lTYQ2EZeVeyqwWH3-PbKMwnR9rvVdYXworSY";
+  // static const _spreadsheetId = SheetsConfig.spreadsheetId;
   static Worksheet? _feedbackSheet;
 
   static Future<void> init() async {
     if (!kIsWeb) {
       try {
-        final ss = await _gsheets.spreadsheet(_spreadsheetId!);
+        final ss = await _gsheets.spreadsheet(_spreadsheetId);
         _feedbackSheet = await ss.worksheetByTitle('Feedback');
 
         // Create headers if sheet is empty
@@ -25,7 +26,7 @@ class FeedbackService {
           ]);
         }
       } catch (e) {
-        // debugPrint('Error initializing sheets: $e');
+        print('Error initializing sheets: $e');
       }
     }
   }
@@ -51,11 +52,11 @@ class FeedbackService {
         return result['success'] == true;
       }
 
-      // debugPrint('Feedback submission failed with status: ${response.statusCode}');
-      // debugPrint('Response body: ${response.body}');
+      print('Feedback submission failed with status: ${response.statusCode}');
+      print('Response body: ${response.body}');
       return false;
     } catch (e) {
-      // debugPrint('Error submitting feedback: $e');
+      print('Error submitting feedback: $e');
       return false;
     }
   }

@@ -17,6 +17,7 @@ import '../llm/prompts.dart';
 import '../models/message.dart';
 import '../llm/gemma_service.dart';
 import '../services/platform_service.dart';
+import '../services/stream_service.dart';
 import '../utils/gradient.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/feedback_dialog.dart';
@@ -50,7 +51,7 @@ class _NewChatscreenState extends State<NewChatscreen>
   final Map<int, ScrollController> _tabScrollControllers = {};
   final _key = GlobalKey<ScaffoldState>();
 
-  static const int MAX_API_CALLS = 15;
+  static const int MAX_API_CALLS = 50;
   int _apiCallCount = 0;
   DateTime? _lastApiCallTime;
   final Map<int, bool> _initialMessageSentForTab = {};
@@ -86,6 +87,9 @@ class _NewChatscreenState extends State<NewChatscreen>
       });
       _tabScrollControllers[i] = controller;
     }
+
+    windowManager.setPreventClose(true);
+    windowManager.addListener(this);
 
     if (kIsWeb) {
       _setupWebBeforeUnload();
@@ -353,11 +357,15 @@ class _NewChatscreenState extends State<NewChatscreen>
   Future<List<Map<String, dynamic>>> fetchRelevantDocuments(
       String queryText) async {
     try {
-      final url = Uri.parse("http://127.0.0.1:8080/query/");
+      final url = Uri.parse(
+          "https://chroma-rag-production.up.railway.app/query/"); //// http://127.0.0.1:8001/query/
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"query_text": queryText}),
+        body: jsonEncode({
+          "query_text": queryText,
+          "where": {"question": queryText},
+        }),
       );
 
       if (response.statusCode == 200) {
@@ -372,7 +380,7 @@ class _NewChatscreenState extends State<NewChatscreen>
         throw Exception("Failed to fetch relevant documents");
       }
     } catch (e) {
-      // debugPrint("Error fetching documents: $e");
+      debugPrint("Error fetching documents: $e");
       return [];
     }
   }
@@ -430,28 +438,57 @@ class _NewChatscreenState extends State<NewChatscreen>
             final answer = doc['answer'] as String? ?? 'No answer';
             enhancedPrompt += "Q: $question\nA: $answer\n";
           }
-          // debugPrint('enhancedprompt: $enhancedPrompt');
+          debugPrint('enhancedprompt: $enhancedPrompt');
         }
+
+        // Create empty assistant message first
+        Message assistantMessage;
+        assistantMessage = Message(
+          content: '',
+          isUser: false,
+          timestamp: DateTime.now(),
+          relevantDocs: null,
+        );
 
         // Generate response
         final response = await gemmaService.generateResponse(
             content, GroqMessageRole.user, enhancedPrompt);
         // debugPrint('response $response');
 
-        if (mounted && _isGenerating) {
-          final endTime = DateTime.now();
-          final generationTime = endTime.difference(startTime);
+        setState(() {
+          // _messages.add(Message(
+          //   content: content,
+          //   isUser: true,
+          //   timestamp: DateTime.now(),
+          // ));
+          _messages.add(assistantMessage);
+          _isLoading = false;
+          _isGenerating = true;
+        });
+
+        // Simulate streaming
+        await for (final chunk in StreamService.simulateStream(response)) {
+          if (!mounted || !_isGenerating) break;
 
           setState(() {
-            _messages.add(Message(
-              content: response,
-              isUser: false,
-              timestamp: DateTime.now(),
-              relevantDocs: null,
-              generationTime: generationTime,
-            ));
-            _isGenerating = false;
+            assistantMessage.updateContent(chunk);
           });
+        }
+
+        if (mounted && _isGenerating) {
+          final endTime = DateTime.now();
+          assistantMessage.generationTime = endTime.difference(startTime);
+
+          // setState(() {
+          //   _messages.add(Message(
+          //     content: response,
+          //     isUser: false,
+          //     timestamp: DateTime.now(),
+          //     relevantDocs: null,
+          //     generationTime: generationTime,
+          //   ));
+          _isGenerating = false;
+          // });
 
           await saveMessages();
         }
@@ -711,8 +748,28 @@ class _NewChatscreenState extends State<NewChatscreen>
         builder: (context) => const FeedbackDialog(),
       );
       if (result != null) {
+        await _cleanupAllTabs();
         await windowManager.destroy();
       }
+    }
+  }
+
+// async method for cleanup
+  Future<void> _cleanupAllTabs() async {
+    try {
+      final sharedPrefs = await prefs.SharedPreferences.getInstance();
+      // Clear all tab messages (0-5 for all possible tabs)
+      for (int i = 0; i <= 5; i++) {
+        await sharedPrefs.remove('${_storageKey}_$i');
+      }
+      // Clear main storage
+      await sharedPrefs.remove(_storageKey);
+
+      // Clear in-memory messages
+      _messages.clear();
+      _tabMessages.clear();
+    } catch (e) {
+      debugPrint('Error cleaning up tabs: $e');
     }
   }
 
@@ -731,6 +788,8 @@ class _NewChatscreenState extends State<NewChatscreen>
       controller.removeListener(() {});
       controller.dispose();
     }
+
+    _cleanupAllTabs();
 
     super.dispose();
   }

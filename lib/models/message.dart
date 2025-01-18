@@ -1,9 +1,9 @@
 class Message {
-  final String content;
+  String content;
   final bool isUser;
   final DateTime timestamp;
   final List<Map<String, dynamic>>? relevantDocs;
-  final Duration? generationTime;
+  Duration? generationTime;
 
   Message({
     required this.content,
@@ -30,4 +30,8 @@ class Message {
             ? Duration(microseconds: json['generationTime'])
             : null,
       );
+
+  void updateContent(String newContent) {
+    content = newContent;
+  }
 }

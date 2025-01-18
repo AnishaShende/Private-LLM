@@ -16,7 +16,7 @@ class PlatformService {
   static String getBaseUrl() {
     if (isWeb) {
       // For web, use a proxy server or cloud-hosted Ollama instance
-      // Don't forget to update!!!
+      // Don't forgot to update!!!
 
       return 'https://your-ollama-proxy.com';
     } else if (!isWeb && io.Platform.isAndroid) {
