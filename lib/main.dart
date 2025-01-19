@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:private_llm/pages/new_chatscreen.dart';
+import 'package:private_llm/pages/chatscreen.dart';
 import 'services/feedback_service.dart';
 import 'services/platform_service.dart';
 import 'package:window_manager/window_manager.dart';

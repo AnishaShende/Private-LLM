@@ -7,6 +7,7 @@ class BorderGradient extends StatefulWidget {
   final double borderWidth;
   final double borderRadius;
   final Duration duration;
+  final boxColor;
 
   const BorderGradient({
     super.key,
@@ -20,6 +21,7 @@ class BorderGradient extends StatefulWidget {
     this.borderWidth = 3.0,
     this.borderRadius = 25.0,
     this.duration = const Duration(seconds: 5),
+    this.boxColor = Colors.white,
   });
 
   @override
@@ -63,7 +65,7 @@ class _BorderGradientState extends State<BorderGradient>
             padding: EdgeInsets.all(widget.borderWidth),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: widget.boxColor,
                 borderRadius: BorderRadius.circular(widget.borderRadius),
               ),
               child: widget.child,

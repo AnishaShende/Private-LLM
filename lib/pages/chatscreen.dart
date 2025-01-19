@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:groq_sdk/groq_sdk.dart';
 import 'package:private_llm/llm/llama_service.dart';
 import 'package:private_llm/llm/mistral_service.dart';
+import 'package:private_llm/pages/about.dart';
 import 'package:private_llm/utils/border_gradient.dart';
 import 'package:shared_preferences/shared_preferences.dart' as prefs;
 import 'package:sidebarx/sidebarx.dart';
@@ -50,7 +51,7 @@ class _NewChatscreenState extends State<NewChatscreen>
   int _currentTabIndex = 0;
 
   final Map<int, ScrollController> _tabScrollControllers = {};
-  final _key = GlobalKey<ScaffoldState>();
+  final key = GlobalKey<ScaffoldState>();
 
   static const int MAX_API_CALLS = 9;
   int _apiCallCount = 0;
@@ -147,6 +148,8 @@ class _NewChatscreenState extends State<NewChatscreen>
       case 5:
         sectionName = 'Fun';
         break;
+      case 6:
+        sectionName = 'About';
       default:
         return;
     }
@@ -233,6 +236,7 @@ class _NewChatscreenState extends State<NewChatscreen>
     'Experience': 3,
     'Skills': 4,
     'Fun': 5,
+    'About': 6,
   };
 
 // helper method to get index
@@ -860,7 +864,7 @@ class _NewChatscreenState extends State<NewChatscreen>
 
           return SafeArea(
             child: Scaffold(
-              key: _key,
+              key: key,
               drawer: SideNavbar(
                 controller: _controller,
                 onNewChat: _startNewChat,
@@ -881,24 +885,27 @@ class _NewChatscreenState extends State<NewChatscreen>
                         builder: (context, child) {
                           switch (_controller.selectedIndex) {
                             case 0:
-                              _key.currentState?.closeDrawer();
+                              key.currentState?.closeDrawer();
                               return buildMainChatScreen(context);
                             // return buildTabContent('Education');
                             case 1:
-                              _key.currentState?.closeDrawer();
+                              key.currentState?.closeDrawer();
                               return buildTabContent('Education');
                             case 2:
-                              _key.currentState?.closeDrawer();
+                              key.currentState?.closeDrawer();
                               return buildTabContent('Projects');
                             case 3:
-                              _key.currentState?.closeDrawer();
+                              key.currentState?.closeDrawer();
                               return buildTabContent('Experience');
                             case 4:
-                              _key.currentState?.closeDrawer();
+                              key.currentState?.closeDrawer();
                               return buildTabContent('Skills');
                             case 5:
-                              _key.currentState?.closeDrawer();
+                              key.currentState?.closeDrawer();
                               return buildTabContent('Fun');
+                            case 6:
+                              key.currentState?.closeDrawer();
+                              return AboutMePage();
                             default:
                               return buildMainChatScreen(context);
                           }
@@ -923,7 +930,7 @@ class _NewChatscreenState extends State<NewChatscreen>
           ? IconButton(
               icon: const Icon(Icons.menu),
               onPressed: () {
-                _key.currentState?.openDrawer();
+                key.currentState?.openDrawer();
               },
             )
           : null,

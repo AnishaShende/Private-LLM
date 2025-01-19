@@ -47,6 +47,8 @@ dependencies:
   typewritertext: ^3.0.9
   flutter_skeleton_ui: ^0.0.6
   flutter_dotenv: ^5.2.1
+  open_file: ^3.5.10
+  path: ^1.9.0
 
 dev_dependencies:
   flutter_test:

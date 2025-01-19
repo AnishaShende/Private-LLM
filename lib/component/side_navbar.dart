@@ -25,6 +25,7 @@ class SideNavbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    bool isDesktop = MediaQuery.of(context).size.width > 1200;
     return SidebarX(
       showToggleButton: isSmallScreen ? false : true,
       controller: _controller,
@@ -75,16 +76,26 @@ class SideNavbar extends StatelessWidget {
         ),
       ),
       extendedTheme: SidebarXTheme(
-          width: isSmallScreen ? size.width * 0.5 : size.width * 0.35),
+          width: isSmallScreen
+              ? size.width * 0.5
+              : isDesktop
+                  ? size.width * 0.2
+                  : size.width * 0.35),
       footerDivider: Divider(color: Colors.white.withOpacity(0.8), height: 1),
       headerBuilder: (context, extended) {
         isSmallScreen ? extended = false : true;
         if (extended) {
-          return Padding(
-            padding: const EdgeInsets.all(10.0),
-            child: NewButton(
-              controller: _controller,
-              onNewChat: onNewChat,
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            clipBehavior: Clip.none,
+            curve: Curves.easeInOut,
+            width: extended ? double.infinity : 0,
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: NewButton(
+                controller: _controller,
+                onNewChat: onNewChat,
+              ),
             ),
           );
         }
@@ -101,6 +112,7 @@ class SideNavbar extends StatelessWidget {
         SidebarXItem(
           icon: Icons.chat,
           label: 'General',
+          onTap: () => debugPrint('size: $size'),
         ),
         SidebarXItem(
           icon: Icons.school,
@@ -134,7 +146,12 @@ class SideNavbar extends StatelessWidget {
           icon: Icons.sentiment_very_satisfied,
           label: 'Fun',
         ),
+        SidebarXItem(
+          icon: Icons.favorite_outline,
+          label: 'About',
+        ),
       ],
     );
   }
 }
+/////////////////////////
