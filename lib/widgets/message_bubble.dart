@@ -1,11 +1,17 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:private_llm/utils/url_launch.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/message.dart';
 import '../utils/formatters.dart';
 
 class MessageBubble extends StatelessWidget {
   final Message message;
-  const MessageBubble({super.key, required this.message});
+  final String? highlight;
+  final String? link;
+  const MessageBubble(
+      {super.key, required this.message, this.highlight, this.link});
 
   @override
   Widget build(BuildContext context) {
@@ -31,8 +37,16 @@ class MessageBubble extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 MarkdownBody(
-                  data: message.content,
+                  data: formatContentForEmbeddedLinks(),
                   selectable: true,
+                  onTapLink: (text, href, title) async {
+                    if (href != null) {
+                      final uri = Uri.parse(href);
+                      if (await canLaunchUrl(uri)) {
+                        await UrlLaunch(uri.toString()).launchUrl();
+                      }
+                    }
+                  },
                   styleSheet: MarkdownStyleSheet(
                     p: TextStyle(
                       color: message.isUser
@@ -44,6 +58,10 @@ class MessageBubble extends StatelessWidget {
                           ? Theme.of(context).colorScheme.onPrimary
                           : Theme.of(context).colorScheme.onSecondary,
                       fontWeight: FontWeight.bold,
+                    ),
+                    a: TextStyle(
+                      // color: Colors.lightBlue[200],
+                      decoration: TextDecoration.underline,
                     ),
                   ),
                 ),
@@ -77,5 +95,25 @@ class MessageBubble extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String formatContentForEmbeddedLinks() {
+    if (message.highlightedText == null ||
+        message.links == null ||
+        message.highlightedText!.isEmpty ||
+        message.links!.isEmpty) {
+      return message.content;
+    }
+
+    var formattedContent = message.content;
+    for (var i = 0; i < message.highlightedText!.length; i++) {
+      // debugPrint('highlighted text detected!!!!!!!!!!!!!!1');
+      final highlight = message.highlightedText![i];
+      final link = message.links![i];
+      formattedContent =
+          formattedContent.replaceAll(highlight, '*[$highlight]($link)*');
+      // debugPrint('formattedContent: $formattedContent');
+    }
+    return formattedContent;
   }
 }

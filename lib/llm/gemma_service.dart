@@ -23,11 +23,11 @@ class GemmaService {
     chat.addMessageWithoutSending(Prompts.systemPrompt);
   }
 
-  void cancelGeneration() {
-    print('stop generation called');
-    chat.settings.stop!;
-    print('stopped');
-  }
+  // void cancelGeneration() {
+  //   print('stop generation called');
+  //   chat.settings.stop!;
+  //   print('stopped');
+  // }
 
   void switchModel(String newModelId) {
     modelId = newModelId;

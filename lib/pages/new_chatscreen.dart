@@ -36,6 +36,7 @@ class NewChatscreen extends StatefulWidget {
 
 class _NewChatscreenState extends State<NewChatscreen>
     with WindowListener, SingleTickerProviderStateMixin {
+  int? _currentGeneratingIndex;
   final gemmaService =
       GemmaService(dotenv.env['GEMMA_API_KEY'] ?? '', 'gemma2-9b-it');
   final llamaService =
@@ -334,10 +335,14 @@ class _NewChatscreenState extends State<NewChatscreen>
 
   // method to stop generation
   void _stopGeneration() {
-    gemmaService.cancelGeneration();
     setState(() {
       _isGenerating = false;
       _isLoading = false;
+      if (_currentGeneratingIndex != null &&
+          _currentGeneratingIndex! < _messages.length) {
+        _messages.removeAt(_currentGeneratingIndex!);
+        _currentGeneratingIndex = null;
+      }
       _messages.add(Message(
         content:
             "Sorry, my last response took too long. Feel free to ask another question!",
@@ -347,6 +352,7 @@ class _NewChatscreenState extends State<NewChatscreen>
       ));
     });
     _scrollToBottom();
+    // gemmaService.cancelGeneration();
   }
 
   // method to handle question selection
@@ -375,6 +381,8 @@ class _NewChatscreenState extends State<NewChatscreen>
           return {
             "question": result["question"],
             "answer": result["answer"],
+            "highlighted_text": result["highlighted_text"],
+            "links": result["links"]
           };
         }).toList();
       } else {
@@ -439,7 +447,7 @@ class _NewChatscreenState extends State<NewChatscreen>
             final answer = doc['answer'] as String? ?? 'No answer';
             enhancedPrompt += "Q: $question\nA: $answer\n";
           }
-          debugPrint('enhancedprompt: $enhancedPrompt');
+          // debugPrint('enhancedprompt: $enhancedPrompt');
         }
 
         // Create empty assistant message first
@@ -452,54 +460,92 @@ class _NewChatscreenState extends State<NewChatscreen>
         );
 
         // Generate response
-        final response = await gemmaService.generateResponse(
-            content, GroqMessageRole.user, enhancedPrompt);
-        // debugPrint('response $response');
-
-        setState(() {
-          // _messages.add(Message(
-          //   content: content,
-          //   isUser: true,
-          //   timestamp: DateTime.now(),
-          // ));
-          _messages.add(assistantMessage);
-          _isLoading = false;
-          _isGenerating = true;
-        });
-
-        // Simulate streaming
-        // gemmaService.chat.stream.listen((event) {
-        //   event.when(
-        //       request: (requestEvent) {},
-        //       response: (responseEvent) {
-        //         print(
-        //             'Received response: ${responseEvent.response.choices.first.message}');
-        //       });
-        // });
-        await for (final chunk in StreamService.simulateStream(response)) {
-          if (!mounted || !_isGenerating) break;
+        if (_isGenerating) {
+          final response = await gemmaService.generateResponse(
+              content, GroqMessageRole.user, enhancedPrompt);
+          // }
+          // debugPrint('response $response');
 
           setState(() {
-            assistantMessage.updateContent(chunk);
+            // _messages.add(Message(
+            //   content: content,
+            //   isUser: true,
+            //   timestamp: DateTime.now(),
+            // ));
+            _messages.add(assistantMessage);
+            _currentGeneratingIndex = _messages.length - 1;
+            _isLoading = false;
+            _isGenerating = true;
           });
-        }
 
-        if (mounted && _isGenerating) {
-          final endTime = DateTime.now();
-          assistantMessage.generationTime = endTime.difference(startTime);
-
-          // setState(() {
-          //   _messages.add(Message(
-          //     content: response,
-          //     isUser: false,
-          //     timestamp: DateTime.now(),
-          //     relevantDocs: null,
-          //     generationTime: generationTime,
-          //   ));
-          _isGenerating = false;
+          // Simulate streaming
+          // gemmaService.chat.stream.listen((event) {
+          //   event.when(
+          //       request: (requestEvent) {},
+          //       response: (responseEvent) {
+          //         print(
+          //             'Received response: ${responseEvent.response.choices.first.message}');
+          //       });
           // });
+          await for (final chunk in StreamService.simulateStream(response)) {
+            if (!mounted || !_isGenerating) break;
+            // debugPrint("responseeeee: $relevantDocs");
+            try {
+              setState(() {
+                // Update message content with new chunk
+                assistantMessage.updateContent(chunk);
 
-          await saveMessages();
+                // Check if relevantDocs exists and has the required fields
+                // Safely extract highlighted text
+
+                // Extract highlighted text and links once
+                if (relevantDocs.isNotEmpty) {
+                  final doc = relevantDocs.first;
+                  if (doc.containsKey('highlighted_text') &&
+                      doc.containsKey('links')) {
+                    assistantMessage.highlightedText =
+                        List<String>.from(doc['highlighted_text']);
+                    assistantMessage.links = List<String>.from(doc['links']);
+                    debugPrint(
+                        'highlighted text: ${assistantMessage.highlightedText}');
+                    debugPrint('links: ${assistantMessage.links}');
+                  }
+                }
+
+                // if (relevantDocs[2] is List) {
+                // List<String>.from(relevantDocs[''] as List<dynamic>);
+                //   debugPrint('highlighttttt: ${relevantDocs[2]}');
+                // }
+
+                // // Safely extract links
+                // if (relevantDocs[3] is List) {
+                //       List<String>.from(relevantDocs[3] as List<dynamic>);
+                //   debugPrint('linksssss: ${relevantDocs[3]}');
+                // }
+              });
+            } catch (e) {
+              debugPrint('Error processing response chunk: $e');
+              continue;
+            }
+          }
+
+          if (mounted && _isGenerating) {
+            final endTime = DateTime.now();
+            assistantMessage.generationTime = endTime.difference(startTime);
+
+            setState(() {
+              //   _messages.add(Message(
+              //     content: response,
+              //     isUser: false,
+              //     timestamp: DateTime.now(),
+              //     relevantDocs: null,
+              //     generationTime: generationTime,
+              //   ));
+              _isGenerating = false;
+            });
+
+            await saveMessages();
+          }
         }
       } catch (e) {
         if (mounted) {
@@ -799,6 +845,7 @@ class _NewChatscreenState extends State<NewChatscreen>
     }
 
     _cleanupAllTabs();
+    _resetApiCallCount();
 
     super.dispose();
   }
