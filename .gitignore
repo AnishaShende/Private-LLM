@@ -48,3 +48,6 @@ app.*.map.json
 .env
 .env.*
 !.env.example
+
+#installers
+desktop_inno_script.iss

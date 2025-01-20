@@ -13,7 +13,7 @@ const types = {
 };
 openOtherTypeFile() async {
   final filePath =
-      "https://docs.google.com/document/d/1Iw5ekASUbM8rtqI7i6MZdN5901bHYAsJxaF4lH0J4wM/edit?tab=t.0";
+      "https://drive.google.com/file/d/1PBfQujmZFcgRYwSSdZfSAJ0IFJ1xN2N4/view?usp=drive_link";
   final extension = path.extension(filePath);
   await OpenFile.open(filePath, type: types[extension]);
 }

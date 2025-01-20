@@ -110,7 +110,12 @@ class _AboutMePageState extends State<AboutMePage> {
                                 : isDesktop
                                     ? 0.55
                                     : 0.75)
-                        : size.height * (isSmallScreen ? 0.15 : 0.15),
+                        : size.height *
+                            (isSmallScreen
+                                ? 0.15
+                                : isDesktop
+                                    ? 0.15
+                                    : 0.15),
                     child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +249,7 @@ class _AboutMePageState extends State<AboutMePage> {
             ),
           const SizedBox(width: 16),
           Text(
-            "Resume.docx",
+            "Resume.pdf",
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,

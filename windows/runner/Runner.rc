@@ -95,7 +95,7 @@ BEGIN
             VALUE "InternalName", "private_llm" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2024 com.example. All rights reserved." "\0"
             VALUE "OriginalFilename", "private_llm.exe" "\0"
-            VALUE "ProductName", "private_llm" "\0"
+            VALUE "ProductName", "Anisha LLM" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
