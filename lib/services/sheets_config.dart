@@ -1,5 +1,3 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-
 class SheetsConfig {
   static final spreadsheetId = "1mXGT1z6lTYQ2EZeVeyqwWH3-PbKMwnR9rvVdYXworSY";
   // static String get spreadsheetId => dotenv.env['SHEET_ID'];

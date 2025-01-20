@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:private_llm/pages/chatscreen.dart';
 import 'package:private_llm/utils/border_gradient.dart';
 import 'package:private_llm/utils/gradient.dart';
 import 'package:private_llm/utils/url_launch.dart';
