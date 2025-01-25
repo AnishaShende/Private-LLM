@@ -120,6 +120,7 @@ Docker image for the API endpoint is available at: [Docker Hub](https://hub.dock
 ## **Installation**
 
 Install the application using the installers available in the `installers` folder. For desktop platforms, follow the setup wizard to complete the installation.
+The website has been successfully deployed and is accessible at [this link](https://white-coast-07f031310.4.azurestaticapps.net/) .
 
 ---
 
