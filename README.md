@@ -15,7 +15,9 @@ An innovative Flutter application that offers a sophisticated AI assistant inter
 
 ## **Screenshots**
 
-![App Screenshot](https://via.placeholder.com/468x300?text=App+Screenshot+Here)
+![Screenshot (473)](https://github.com/user-attachments/assets/55c049bf-1875-4134-bc59-7ba7fc1dc36c)
+![Screenshot (474)](https://github.com/user-attachments/assets/f75711ef-4962-4876-b151-de0e9f215885)
+
 
 ---
 
