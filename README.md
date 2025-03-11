@@ -12,10 +12,27 @@ An innovative Flutter application that offers a sophisticated AI assistant inter
 - **Groq**: Optimized inference for large language models.
 
 ---
+## **Screenshots**  
 
-## **Screenshots**
+### **Website**  
+<p align="center">
+    <img src="https://github.com/user-attachments/assets/55c049bf-1875-4134-bc59-7ba7fc1dc36c" width="70%">
+    <img src="https://github.com/user-attachments/assets/f75711ef-4962-4876-b151-de0e9f215885" width="70%">
+</p>
 
-![App Screenshot](https://via.placeholder.com/468x300?text=App+Screenshot+Here)
+### **Desktop**  
+<p align="center">
+    <img src="https://github.com/user-attachments/assets/9fa789cb-14ed-47e8-a52f-64df8ddac584" width="45%">
+    <img src="https://github.com/user-attachments/assets/938c48df-7493-44ff-b2b1-d9e909cd9468" width="45%">
+    <img src="https://github.com/user-attachments/assets/737698dd-a14e-4dcc-b19c-c84c7df77e6b" width="45%">
+</p>
+
+### **Android**  
+<p align="center">
+    <img src="https://github.com/user-attachments/assets/e477296f-aee3-4cad-b557-3d4ae12c7415" width="30%">
+    <img src="https://github.com/user-attachments/assets/3b97d20d-8534-4340-aa48-39c7974de080" width="30%">
+    <img src="https://github.com/user-attachments/assets/a2041aad-1c9d-42d0-95c5-4dd2aca9972e" width="30%">
+</p>
 
 ---
 
@@ -120,6 +137,7 @@ Docker image for the API endpoint is available at: [Docker Hub](https://hub.dock
 ## **Installation**
 
 Install the application using the installers available in the `installers` folder. For desktop platforms, follow the setup wizard to complete the installation.
+The website has been successfully deployed and is accessible at [this link](https://white-coast-07f031310.4.azurestaticapps.net/) .
 
 ---
 
