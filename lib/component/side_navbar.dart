@@ -112,7 +112,7 @@ class SideNavbar extends StatelessWidget {
         SidebarXItem(
           icon: Icons.chat,
           label: 'General',
-          onTap: () => debugPrint('size: $size'),
+          // onTap: () => debugPrint('size: $size'),
         ),
         SidebarXItem(
           icon: Icons.school,

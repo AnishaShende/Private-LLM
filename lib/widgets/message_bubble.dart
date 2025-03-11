@@ -16,7 +16,10 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final maxWidth = screenWidth * 0.5;
+    // final maxWidth = screenWidth * 0.5;
+    final isSmallScreen = screenWidth < 600;
+    // Adjust max width based on screen size
+    final maxWidth = isSmallScreen ? screenWidth * 0.75 : screenWidth * 0.5;
 
     return Column(
       crossAxisAlignment:

@@ -72,6 +72,7 @@ class _NewChatscreenState extends State<NewChatscreen>
   @override
   void initState() {
     super.initState();
+    _currentModel = 'gemma2-9b-it';
     _initializePreferences().then((_) {
       _loadApiCallCount();
       _setupResetTimer();
@@ -95,6 +96,19 @@ class _NewChatscreenState extends State<NewChatscreen>
 
     if (kIsWeb) {
       _setupWebBeforeUnload();
+    }
+  }
+
+  _getSelectedService() {
+    switch (_currentModel) {
+      case 'llama3-8b-8192':
+        return llamaService;
+      case 'mixtral-8x7b-32768':
+        return mistralService;
+      case 'gemma2-9b-it':
+        return gemmaService;
+      default:
+        return gemmaService;
     }
   }
 
@@ -296,17 +310,28 @@ class _NewChatscreenState extends State<NewChatscreen>
   }
 
   void _setupWebBeforeUnload() {
-    html.window.onBeforeUnload.listen((event) async {
-      // Show the feedback dialog
-      final result = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const FeedbackDialog(),
-      );
+    html.window.onBeforeUnload.listen((html.Event event) {
+      // Prevent default browser behavior
+      event.preventDefault();
 
-      if (result != true) {
-        event.preventDefault();
+      // Show a browser confirmation dialog
+      if (event is html.BeforeUnloadEvent) {
+        event.returnValue = 'Are you sure you want to leave?';
       }
+
+      // Show our custom feedback dialog
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final result = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const FeedbackDialog(),
+        );
+
+        if (result == true) {
+          // User confirmed, allow the page to close
+          html.window.location.reload();
+        }
+      });
     });
   }
 
@@ -393,7 +418,7 @@ class _NewChatscreenState extends State<NewChatscreen>
         throw Exception("Failed to fetch relevant documents");
       }
     } catch (e) {
-      debugPrint("Error fetching documents: $e");
+      // debugPrint("Error fetching documents: $e");
       return [];
     }
   }
@@ -447,9 +472,10 @@ class _NewChatscreenState extends State<NewChatscreen>
         if (relevantDocs.isNotEmpty) {
           enhancedPrompt += "\n\nRelevant context:\n";
           for (Map<String, dynamic> doc in relevantDocs) {
-            final question = doc['question'] as String? ?? 'No question';
+            // final question = doc['question'] as String? ?? 'No question';
             final answer = doc['answer'] as String? ?? 'No answer';
-            enhancedPrompt += "Q: $question\nA: $answer\n";
+            // enhancedPrompt += "Q: $question\nA: $answer\n";
+            enhancedPrompt += "A: $answer\n";
           }
           // debugPrint('enhancedprompt: $enhancedPrompt');
         }
@@ -465,8 +491,8 @@ class _NewChatscreenState extends State<NewChatscreen>
 
         // Generate response
         if (_isGenerating) {
-          final response = await gemmaService.generateResponse(
-              content, GroqMessageRole.user, enhancedPrompt);
+          final response = await _getSelectedService()
+              .generateResponse(content, GroqMessageRole.user, enhancedPrompt);
           // }
           // debugPrint('response $response');
 
@@ -510,9 +536,9 @@ class _NewChatscreenState extends State<NewChatscreen>
                     assistantMessage.highlightedText =
                         List<String>.from(doc['highlighted_text']);
                     assistantMessage.links = List<String>.from(doc['links']);
-                    debugPrint(
-                        'highlighted text: ${assistantMessage.highlightedText}');
-                    debugPrint('links: ${assistantMessage.links}');
+                    // debugPrint(
+                    //     'highlighted text: ${assistantMessage.highlightedText}');
+                    // debugPrint('links: ${assistantMessage.links}');
                   }
                 }
 
@@ -528,7 +554,7 @@ class _NewChatscreenState extends State<NewChatscreen>
                 // }
               });
             } catch (e) {
-              debugPrint('Error processing response chunk: $e');
+              // debugPrint('Error processing response chunk: $e');
               continue;
             }
           }
@@ -768,7 +794,10 @@ class _NewChatscreenState extends State<NewChatscreen>
       for (int i = 1; i <= 5; i++) {
         _tabMessages[i] = [];
         _initialMessageSentForTab[i] = false;
-        _tabScrollControllers[i]!.jumpTo(0);
+        if (_tabScrollControllers[i] != null &&
+            _tabScrollControllers[i]!.hasClients) {
+          _tabScrollControllers[i]!.jumpTo(0);
+        }
       }
 
       _isLoading = false;
@@ -776,11 +805,12 @@ class _NewChatscreenState extends State<NewChatscreen>
       _currentTabIndex = 0;
 
       _messageController.clear();
+      _showInitialQuestions = true;
     });
 
     // Clear all stored messages from SharedPreferences
     final sharedPrefs = await prefs.SharedPreferences.getInstance();
-    for (int i = 1; i < 5; i++) {
+    for (int i = 0; i < 5; i++) {
       await sharedPrefs.remove('${_storageKey}_$i');
     }
     await sharedPrefs.remove(_storageKey);
@@ -828,7 +858,7 @@ class _NewChatscreenState extends State<NewChatscreen>
       _messages.clear();
       _tabMessages.clear();
     } catch (e) {
-      debugPrint('Error cleaning up tabs: $e');
+      // debugPrint('Error cleaning up tabs: $e');
     }
   }
 
@@ -949,7 +979,7 @@ class _NewChatscreenState extends State<NewChatscreen>
                     child: DropdownButton<String>(
                       value: _currentModel,
                       isExpanded: false,
-                      hint: const Text('Gemma 2 (9B)'),
+                      // hint: const Text('Gemma 2 (9B)'),
                       items: _availableModels.entries.map((entry) {
                         return DropdownMenuItem<String>(
                           value: entry.value,
@@ -960,8 +990,13 @@ class _NewChatscreenState extends State<NewChatscreen>
                         if (newValue != null) {
                           setState(() {
                             _currentModel = newValue;
-                            gemmaService.switchModel(newValue);
+                            _getSelectedService().switchModel(newValue);
                             _messages.clear();
+                            _tabMessages.clear();
+                            gemmaService.initChat();
+                            llamaService.initChat();
+                            mistralService.initChat();
+                            saveMessages();
                           });
                         }
                       },
@@ -1284,6 +1319,8 @@ class _NewChatscreenState extends State<NewChatscreen>
   Widget buildTabContent(String type) {
     final messages = initialMessages[type] ?? [];
     final tabIndex = getSectionIndex(type);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
 
     return Scaffold(
       appBar: buildAppBar(false),
@@ -1306,7 +1343,8 @@ class _NewChatscreenState extends State<NewChatscreen>
                     return Container(
                       margin: const EdgeInsets.only(top: 8.0),
                       constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width * 0.75,
+                        maxWidth: MediaQuery.of(context).size.width *
+                            (isSmallScreen ? 0.85 : 0.75),
                       ),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -1315,14 +1353,16 @@ class _NewChatscreenState extends State<NewChatscreen>
                       ),
                       child: SkeletonParagraph(
                         style: SkeletonParagraphStyle(
-                          lines: 5,
-                          spacing: 9,
+                          lines: isSmallScreen ? 3 : 5,
+                          spacing: isSmallScreen ? 6 : 9,
                           lineStyle: SkeletonLineStyle(
                             randomLength: true,
-                            height: 10,
+                            height: isSmallScreen ? 8 : 10,
                             borderRadius: BorderRadius.all(Radius.circular(8)),
-                            minLength: MediaQuery.of(context).size.width / 3,
-                            maxLength: MediaQuery.of(context).size.width / 2,
+                            minLength: MediaQuery.of(context).size.width /
+                                (isSmallScreen ? 2 : 3),
+                            maxLength: MediaQuery.of(context).size.width /
+                                (isSmallScreen ? 1.5 : 2),
                           ),
                         ),
                       ),

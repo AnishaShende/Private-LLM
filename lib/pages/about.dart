@@ -94,79 +94,83 @@ class _AboutMePageState extends State<AboutMePage> {
               },
               child: BorderGradient(
                 borderRadius: 12,
-                child: Expanded(
-                  child: AnimatedContainer(
-                    clipBehavior: Clip.none,
-                    duration: Duration(milliseconds: 300),
-                    padding: EdgeInsets.all(16),
-                    // decoration: BoxDecoration(
-                    //   color: Colors.grey[200],
-                    //   borderRadius: BorderRadius.circular(12),
-                    // ),
-                    height: _isDropdownOpen
-                        ? size.height *
-                            (isSmallScreen
-                                ? 0.45
-                                : isDesktop
-                                    ? 0.55
-                                    : 0.75)
-                        : size.height *
-                            (isSmallScreen
-                                ? 0.15
-                                : isDesktop
-                                    ? 0.15
-                                    : 0.15),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ListTile(
-                            title: const Text(
-                              'Social Profiles',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black54),
-                            ),
-                            trailing: Icon(
-                              color: Colors.black54,
-                              _isDropdownOpen
-                                  ? Icons.keyboard_arrow_up
-                                  : Icons.keyboard_arrow_down,
-                            ),
-                            onTap: () {
-                              setState(() {
-                                _isDropdownOpen = !_isDropdownOpen;
-                              });
-                            },
+                child: AnimatedContainer(
+                  clipBehavior: Clip.none,
+                  duration: Duration(milliseconds: 300),
+                  padding: EdgeInsets.all(16),
+                  // decoration: BoxDecoration(
+                  //   color: Colors.grey[200],
+                  //   borderRadius: BorderRadius.circular(12),
+                  // ),
+                  height: _isDropdownOpen
+                      ? size.height *
+                          (isSmallScreen
+                              ? 0.45
+                              : isDesktop
+                                  ? 0.55
+                                  : 0.75)
+                      : size.height *
+                          (isSmallScreen
+                              ? 0.15
+                              : isDesktop
+                                  ? 0.15
+                                  : 0.15),
+                  width: double.infinity,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ListTile(
+                          title: const Text(
+                            'Social Profiles',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black54),
                           ),
-                          // if (_isDropdownOpen) SizedBox(height: 16),
-                          if (_isDropdownOpen)
-                            Column(
-                              children: [
-                                _socialCard(
-                                  "GitHub",
-                                  "https://github.com/AnishaShende",
-                                  Colors.teal[300],
-                                ),
-                                _socialCard(
-                                  "LinkedIn",
-                                  "https://www.linkedin.com/in/anishashende",
-                                  Colors.teal[400],
-                                ),
-                                _socialCard(
-                                  "X",
-                                  "https://x.com/Anisha_Shende",
-                                  Colors.teal[500],
-                                ),
-                                _socialCard(
-                                  "Portfolio",
-                                  "https://anishashende.dev",
-                                  Colors.teal[600],
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
+                          trailing: Icon(
+                            color: Colors.black54,
+                            _isDropdownOpen
+                                ? Icons.keyboard_arrow_up
+                                : Icons.keyboard_arrow_down,
+                          ),
+                          onTap: () {
+                            setState(() {
+                              _isDropdownOpen = !_isDropdownOpen;
+                            });
+                          },
+                        ),
+                        // if (_isDropdownOpen) SizedBox(height: 16),
+                        if (_isDropdownOpen)
+                          Column(
+                            children: [
+                              _socialCard(
+                                "GitHub",
+                                "https://github.com/AnishaShende",
+                                Colors.teal[300],
+                              ),
+                              _socialCard(
+                                "LinkedIn",
+                                "https://www.linkedin.com/in/anishashende",
+                                Colors.teal[400],
+                              ),
+                              _socialCard(
+                                "X",
+                                "https://x.com/Anisha_Shende",
+                                Colors.teal[500],
+                              ),
+                              _socialCard(
+                                "Medium",
+                                "https://anishashende.medium.com",
+                                Colors.teal[600],
+                              ),
+                              _socialCard(
+                                "Portfolio",
+                                "https://anishashende.github.io",
+                                Colors.teal[600],
+                              ),
+                            ],
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -194,6 +198,7 @@ class _AboutMePageState extends State<AboutMePage> {
             // Footer Section
             Center(
               child: Text(
+                // "Made with \u2764 by Anisha Shende | \u00A9 All rights reserved",
                 "Made with ❤️ by Anisha Shende | ©️ All rights reserved",
                 textAlign: TextAlign.center,
                 style: TextStyle(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:private_llm/pages/chatscreen.dart';
-import 'services/feedback_service.dart';
 import 'services/platform_service.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -25,11 +24,6 @@ Future main() async {
       await windowManager.focus();
       await windowManager.setPreventClose(true);
     });
-  }
-
-  // Initialize feedback service only if not running on web
-  if (!PlatformService.isWeb) {
-    await FeedbackService.init();
   }
 
   await dotenv.load(fileName: ".env");

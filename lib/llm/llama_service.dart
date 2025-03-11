@@ -8,10 +8,10 @@ class LlamaService {
   final List<Map<String, String>> _conversationHistory = [];
 
   LlamaService(String apiKey, this.modelId) : _groq = Groq(apiKey) {
-    _initChat();
+    initChat();
   }
 
-  void _initChat() {
+  void initChat() {
     _chat = _groq.startNewChat(
       modelId,
       settings: GroqChatSettings(

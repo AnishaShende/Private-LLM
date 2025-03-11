@@ -13,7 +13,7 @@ class UrlLaunch {
         throw Exception('Could not launch $_uri');
       }
     } catch (e) {
-      debugPrint('Error launching URL: $e');
+      // debugPrint('Error launching URL: $e');
       rethrow;
     }
   }
