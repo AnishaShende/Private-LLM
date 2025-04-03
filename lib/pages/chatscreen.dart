@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:groq_sdk/groq_sdk.dart';
@@ -67,11 +67,15 @@ class _NewChatscreenState extends State<NewChatscreen>
   // key for positioning
   final GlobalKey _textFieldKey = GlobalKey();
 
+  final url = Uri.parse("https://chroma-rag-production.up.railway.app/wake");
+
   final TextEditingController _messageController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    // Wake server
+    http.post(url, headers: {"Content-Type": "application/json"});
     _currentModel = 'gemma2-9b-it';
     _initializePreferences().then((_) {
       _loadApiCallCount();
