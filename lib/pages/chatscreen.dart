@@ -998,11 +998,13 @@ class _NewChatscreenState extends State<NewChatscreen>
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
+                      key: UniqueKey(),
                       value: _currentModel,
                       isExpanded: false,
                       // hint: const Text('Gemma 2 (9B)'),
                       items: _availableModels.entries.map((entry) {
                         return DropdownMenuItem<String>(
+                          // key: UniqueKey(),
                           value: entry.value,
                           child: Text(entry.key),
                         );
@@ -1014,13 +1016,13 @@ class _NewChatscreenState extends State<NewChatscreen>
                           setState(() {
                             _currentModel = newValue;
                             newService.switchModel(newValue);
-                            _messages.clear();
-                            _tabMessages.clear();
-                            gemmaService.initChat();
-                            llamaService.initChat();
-                            mistralService.initChat();
-                            saveMessages();
                           });
+                          saveMessages();
+                          _messages.clear();
+                          _tabMessages.clear();
+                          gemmaService.initChat();
+                          llamaService.initChat();
+                          mistralService.initChat();
                         }
                       },
                     ),
