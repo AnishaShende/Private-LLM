@@ -27,6 +27,7 @@ import 'package:typewritertext/typewritertext.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:flutter_skeleton_ui/flutter_skeleton_ui.dart';
+import 'package:flutter_emoji/flutter_emoji.dart';
 
 class NewChatscreen extends StatefulWidget {
   const NewChatscreen({super.key});
@@ -41,9 +42,9 @@ class _NewChatscreenState extends State<NewChatscreen>
   final gemmaService =
       GemmaService(dotenv.env['GEMMA_API_KEY'] ?? '', 'gemma2-9b-it');
   final llamaService =
-      LlamaService(dotenv.env['LLAMA_API_KEY'] ?? '', 'llama3-8b-8192');
+      LlamaService(dotenv.env['LLAMA_API_KEY'] ?? '', 'llama-3.1-8b-instant');
   final mistralService =
-      MistralService(dotenv.env['MISTRAL_API_KEY'] ?? '', 'mixtral-8x7b-32768');
+      MistralService(dotenv.env['MISTRAL_API_KEY'] ?? '', 'qwen3-32b');
 
   final _controller = SidebarXController(selectedIndex: 0, extended: true);
 
@@ -70,6 +71,9 @@ class _NewChatscreenState extends State<NewChatscreen>
   final url = Uri.parse("https://chroma-rag-production.up.railway.app/wake");
 
   final TextEditingController _messageController = TextEditingController();
+
+  var heart = Emoji('heart', '❤️');
+  var smile = Emoji('smile', '😊');
 
   @override
   void initState() {
@@ -103,11 +107,24 @@ class _NewChatscreenState extends State<NewChatscreen>
     }
   }
 
-  _getSelectedService() {
-    switch (_currentModel) {
-      case 'llama3-8b-8192':
+  // _getSelectedService() {
+  //   switch (_currentModel) {
+  //     case 'llama-3.1-8b-instant':
+  //       return llamaService;
+  //     case 'qwen3-32b':
+  //       return mistralService;
+  //     case 'gemma2-9b-it':
+  //       return gemmaService;
+  //     default:
+  //       return gemmaService;
+  //   }
+  // }
+
+  _getServiceByModel(String? model) {
+    switch (model) {
+      case 'llama-3.1-8b-instant':
         return llamaService;
-      case 'mixtral-8x7b-32768':
+      case 'qwen3-32b':
         return mistralService;
       case 'gemma2-9b-it':
         return gemmaService;
@@ -189,9 +206,9 @@ class _NewChatscreenState extends State<NewChatscreen>
       duration: const Duration(milliseconds: 90));
 
   final Map<String, String> _availableModels = {
-    'Llama 3 (8B)': 'llama3-8b-8192',
+    'Llama 3.1 (8B)': 'llama-3.1-8b-instant',
     'Gemma 2 (9B)': 'gemma2-9b-it',
-    'Mixtral 8 (7B)': 'mixtral-8x7b-32768',
+    'Qwen 3 (32B)': 'qwen3-32b',
   };
 
   String? _currentModel;
@@ -495,8 +512,8 @@ class _NewChatscreenState extends State<NewChatscreen>
 
         // Generate response
         if (_isGenerating) {
-          final response = await _getSelectedService()
-              .generateResponse(content, GroqMessageRole.user, enhancedPrompt);
+          final response = await _getServiceByModel(_currentModel)
+              ?.generateResponse(content, GroqMessageRole.user, enhancedPrompt);
           // }
           // debugPrint('response $response');
 
@@ -992,9 +1009,11 @@ class _NewChatscreenState extends State<NewChatscreen>
                       }).toList(),
                       onChanged: (String? newValue) {
                         if (newValue != null) {
+                          // Get the service for the new value before setState
+                          final newService = _getServiceByModel(newValue);
                           setState(() {
                             _currentModel = newValue;
-                            _getSelectedService().switchModel(newValue);
+                            newService.switchModel(newValue);
                             _messages.clear();
                             _tabMessages.clear();
                             gemmaService.initChat();
@@ -1124,7 +1143,7 @@ class _NewChatscreenState extends State<NewChatscreen>
                                         : MediaQuery.of(context).size.width *
                                             0.015),
                                 textAlign: TextAlign.justify,
-                                "And you've found Anisha's digital portfolio, and I'm here to help you explore it. Got a question about her research, certifications, or upcoming goals? Just ask me. I've got all the answers! Ask me anything, and I'll guide you through! 😊"),
+                                "And you've found Anisha's digital portfolio, and I'm here to help you explore it. Got a question about her research, certifications, or upcoming goals? Just ask me. I've got all the answers! Ask me anything, and I'll guide you through! $smile"),
                           ],
                         ),
                       ),
