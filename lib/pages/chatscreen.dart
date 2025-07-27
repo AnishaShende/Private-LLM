@@ -1143,7 +1143,7 @@ class _NewChatscreenState extends State<NewChatscreen>
                                         : MediaQuery.of(context).size.width *
                                             0.015),
                                 textAlign: TextAlign.justify,
-                                "And you've found Anisha's digital portfolio, and I'm here to help you explore it. Got a question about her research, certifications, or upcoming goals? Just ask me. I've got all the answers! Ask me anything, and I'll guide you through! $smile"),
+                                "And you've found Anisha's digital portfolio, and I'm here to help you explore it. Got a question about her research, certifications, or upcoming goals? Just ask me. I've got all the answers! Ask me anything, and I'll guide you through! 😊"),
                           ],
                         ),
                       ),

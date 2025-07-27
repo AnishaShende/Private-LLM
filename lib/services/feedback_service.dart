@@ -7,9 +7,10 @@ import 'platform_service.dart';
 
 class FeedbackService {
   static const String _webAppUrl =
-      'https://script.google.com/macros/s/AKfycbyskNJRZOHoZV1Jxp6wBx-IMYJ_q7LxY9RO5yVIcNlmrSnSEeyWoku3gvWnDcSU3X5aTA/exec';
+      'https://script.google.com/macros/s/AKfycbzGXZccNrpvV4wKi-bO1pRxYP1lZHXNBWSrA1dBwJ-5-O1PZ3H1apXPHMnR7FBOImPCwg/exec';
   static final _gsheets = GSheets(SheetsConfig.credentials);
-  static const _spreadsheetId = "1mXGT1z6lTYQ2EZeVeyqwWH3-PbKMwnR9rvVdYXworSY";
+  static const _spreadsheetId =
+      "AKfycbzGXZccNrpvV4wKi-bO1pRxYP1lZHXNBWSrA1dBwJ-5-O1PZ3H1apXPHMnR7FBOImPCwg";
   static Worksheet? _feedbackSheet;
   static bool _isInitialized = false;
 
@@ -18,8 +19,11 @@ class FeedbackService {
 
     try {
       if (PlatformService.isDesktop) {
+        print('Fetching spreadsheet...');
         final ss = await _gsheets.spreadsheet(_spreadsheetId);
+        print('Fetched: ${ss}');
         _feedbackSheet = await ss.worksheetByTitle('Feedback');
+        print('Worksheet found: ${_feedbackSheet?.title}');
 
         // Create headers if sheet is empty
         if ((await _feedbackSheet?.values.row(1))?.isEmpty ?? true) {
