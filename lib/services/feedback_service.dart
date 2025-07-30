@@ -7,7 +7,7 @@ import 'platform_service.dart';
 
 class FeedbackService {
   static const String _webAppUrl =
-      'https://script.google.com/macros/s/AKfycbxfizWFuTqAT_a0_72hr1-NC3_fCWtiGkV-_sDt8TP_j3oWKqDTkzlo5sHQ9xeG2sEZfA/exec';
+      'https://script.google.com/macros/s/AKfycbzsO6tTxgvdrqrkYHO-dcMtLb-hR1_arv0x2R5ctzoakQRFYNJsC2xtqAJKeXYru_qtwg/exec';
   static final _gsheets = GSheets(SheetsConfig.credentials);
   static const _spreadsheetId = "1mXGT1z6lTYQ2EZeVeyqwWH3-PbKMwnR9rvVdYXworSY";
   static Worksheet? _feedbackSheet;
@@ -18,12 +18,12 @@ class FeedbackService {
 
     try {
       if (PlatformService.isDesktop) {
-        print('*******************************************');
-        print('Fetching spreadsheet...');
+        // print('*******************************************');
+        // print('Fetching spreadsheet...');
         final ss = await _gsheets.spreadsheet(_spreadsheetId);
-        print('Fetched: ${ss}');
+        // print('Fetched: ${ss}');
         _feedbackSheet = await ss.worksheetByTitle('Feedback');
-        print('Worksheet found: ${_feedbackSheet?.title}');
+        // print('Worksheet found: ${_feedbackSheet?.title}');
 
         // Create headers if sheet is empty
         if ((await _feedbackSheet?.values.row(1))?.isEmpty ?? true) {
@@ -54,11 +54,11 @@ class FeedbackService {
   }
 
   static Future<bool> _submitWebFeedback(String message) async {
-    print('Submitting web feedback to $_webAppUrl');
+    // print('Submitting web feedback to $_webAppUrl');
     final response = await http.post(
       Uri.parse(_webAppUrl),
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'text/plain',
         // 'Access-Control-Allow-Origin': '*',
         // 'Access-Control-Allow-Methods': 'POST, OPTIONS',
       },
@@ -68,12 +68,12 @@ class FeedbackService {
         'platform': 'web',
       }),
     );
-    print("sent web feedback: $message");
+    // print("sent web feedback: $message");
 
     if (response.statusCode == 200) {
       print('Web feedback submitted successfully');
       final result = jsonDecode(response.body);
-      print('Web feedback response: $result');
+      // print('Web feedback response: $result');
       return result['success'] == true;
     } else {
       print(
