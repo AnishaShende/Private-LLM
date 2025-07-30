@@ -141,12 +141,6 @@ The website has been successfully deployed and is accessible at [this link](http
 
 ---
 
-## **Demo**
-
-[Insert gif or link to demo]
-
----
-
 ## **Feedback**
 
 For feedback, feel free to reach out to me at: [anishaashende@gmail.com](mailto:anishaashende@gmail.com)
