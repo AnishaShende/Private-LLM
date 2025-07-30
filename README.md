@@ -34,6 +34,17 @@ An innovative Flutter application that offers a sophisticated AI assistant inter
     <img src="https://github.com/user-attachments/assets/a2041aad-1c9d-42d0-95c5-4dd2aca9972e" width="30%">
 </p>
 
+### **iOS**  
+<p align="center">
+    <img src="https://github.com/user-attachments/assets/19db200f-ee56-4bee-8abf-62ae6ac6d0e3" width="30%">
+    <img src="https://github.com/user-attachments/assets/d144f5bd-bf96-40a1-addf-45c644b7d4f1" width="30%">
+    <img src="https://github.com/user-attachments/assets/94c40461-1e1d-4154-8d29-c54002098703" width="30%">
+    <img src="https://github.com/user-attachments/assets/fb3b87c1-5bfe-429b-8812-5ec2a2c6e3fb" width="30%">
+</p>
+
+
+
+
 ---
 
 ## **Features**
